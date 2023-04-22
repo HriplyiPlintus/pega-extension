@@ -1,0 +1,32 @@
+/* Tracen settings styles */
+#RuleSetDisplay table td.dataLabelStyle button:active,
+#EventTypesDisplay td.tdLeftStyle > table > tbody > tr button:active {
+    transform: translateY(2px);
+}
+
+/* rulesets buttons in tracer */
+#RuleSetDisplay > div > table > tbody > tr,
+#EventTypesDisplay td.tdLeftStyle > table > tbody > tr {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+/* tabs in developer's portal */
+#workarea div.tStrCntr ul[role='tablist'] li[role='tab'] span:active {
+    cursor: grabbing !important;
+}
+
+#workarea div.tStrCntr ul[role='tablist'] li[role='tab'] span {
+    cursor: pointer;
+}
+
+.pega-extension__icon-hidden {
+    display: none;
+}
+
+.pega-extension__icon-visible {
+    display: block;
+}
+.pega-extension__copy-value-icon img:hover {
+    position: absolute;
+}
