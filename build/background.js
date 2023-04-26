@@ -97,3 +97,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         injectCSS(tabId)
     }
 })
+
+chrome.tabs.onActivated.addListener(function () {
+    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+        const activeTab = tabs[0]
+
+        chrome.storage.sync.get(['settings']).then((result) => {
+            const urls = result.settings.map((s) => s.url)
+
+            for (const url of urls) {
+                if (activeTab.url.includes(url)) {
+                    chrome.action.setIcon({ path: '/assets/img/icon-38.png' })
+                } else {
+                    chrome.action.setIcon({
+                        path: '/assets/img/icon_grey-38.png',
+                    })
+                }
+            }
+        })
+    })
+})
