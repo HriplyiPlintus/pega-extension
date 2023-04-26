@@ -98,6 +98,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 })
 
+//extension activeness indicator: switching extension icon depending on tab url
 chrome.tabs.onActivated.addListener(function () {
     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
         const activeTab = tabs[0]
