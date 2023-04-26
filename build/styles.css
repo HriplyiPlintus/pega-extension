@@ -20,13 +20,6 @@
     cursor: pointer;
 }
 
-.pega-extension__icon-hidden {
-    display: none;
-}
-
-.pega-extension__icon-visible {
-    display: block;
-}
-.pega-extension__copy-value-icon img:hover {
-    position: absolute;
+.pega-extension__copy-value {
+    cursor: copy;
 }

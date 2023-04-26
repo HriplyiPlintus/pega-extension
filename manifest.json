@@ -31,7 +31,8 @@
                 "assets/img/copy-done.png",
                 "assets/war/dev-portal.js",
                 "assets/img/copy-hover-16.png",
-                "assets/img/copy-hover.svg"
+                "assets/img/copy-hover.svg",
+                "build/styles.css"
             ],
             "matches": [
                 "https://srvcrp-digops-dt1.pegacloud.net/*",

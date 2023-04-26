@@ -288,26 +288,48 @@ if (typeof Tabs !== 'function') {
                     'div.content-item[data-ui-meta*=".pyClassName"]'
                 )
 
+                const className = classElements
+                    ?.querySelector('a')
+                    ?.innerText.trim()
+
+                //добавление функции копирования класс рула в клипборд
                 const classLabelElement = classElements?.querySelector('label')
 
-                //add copy icon for class name label
-                console.log('class label element', classLabelElement)
+                //добавление стилей в iframe
+                let cssLink = document.createElement('link')
+                cssLink.href = chrome.runtime.getURL('build/styles.css')
+                cssLink.rel = 'stylesheet'
+                cssLink.type = 'text/css'
+                iframeDoc.head.appendChild(cssLink)
+
+                classLabelElement?.classList.add('pega-extension__copy-value')
+                if (classLabelElement) {
+                    classLabelElement.classList.add(
+                        'pega-extension__copy-value'
+                    )
+                    classLabelElement.addEventListener('click', () => {
+                        navigator.clipboard.writeText(className)
+                    })
+                }
+
+                /*
+                const copyImgWrapper = document.createElement('div')
+                copyImgWrapper.classList.add('pega-extension__copy-value-icon')
 
                 const copyImg = document.createElement('img')
+                copyImgWrapper.appendChild(copyImg)
                 copyImg.setAttribute(
                     'src',
-                    chrome.runtime.getURL('assets/img/copy-hover.svg')
+                    chrome.runtime.getURL('assets/img/copy.png')
                 )
-                copyImg.classList.add('pega-extension__copy-value-icon')
                 classLabelElement?.classList.add('pega-extension__icon-hidden')
 
                 classLabelElement?.addEventListener('mouseover', () => {})
 
-                classLabelElement?.appendChild(copyImg)
+                classLabelElement?.appendChild(copyImgWrapper)
+                */
 
-                const className = classElements
-                    ?.querySelector('a')
-                    ?.innerText.trim()
+                //здесь конец тестов
 
                 //Purpose для decision table
                 const ruleNameElement =
