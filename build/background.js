@@ -1,12 +1,39 @@
 let processedTabs = []
 
+//меняет иконку расширения
+function setExtensionStatusIcon() {
+    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+        const activeTab = tabs[0]
+
+        chrome.storage.sync.get(['settings']).then((result) => {
+            const urls = result.settings.map((s) => s.url)
+
+            for (const url of urls) {
+                if (activeTab.url.includes(url)) {
+                    chrome.action.setIcon({ path: '/assets/img/icon-38.png' })
+                } else {
+                    chrome.action.setIcon({
+                        path: '/assets/img/icon_grey-38.png',
+                    })
+                }
+            }
+        })
+    })
+}
+
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    setExtensionStatusIcon()
     //console.log('tabId', tabId)
     //console.log('changeInfo', changeInfo)
     console.log('tab', tab)
     console.log('processed tabs', processedTabs)
     console.log(
         `processing tab: ${tabId} title: ${tab.title} status: ${changeInfo.status}`
+    )
+
+    console.log(
+        'copy-done.png',
+        chrome.runtime.getURL('./assets/img/copy-done.png')
     )
 
     if (processedTabs.includes(tabId)) {
@@ -17,7 +44,10 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
                 tabId,
                 {
                     copyImgUrl: chrome.runtime.getURL('./assets/img/copy.png'),
-                    doneImgUrl: chrome.runtime.getURL('./assets/img/done.png'),
+                    //doneImgUrl: chrome.runtime.getURL('./assets/img/done.png'),
+                    doneImgUrl: chrome.runtime.getURL(
+                        './assets/img/copy-done.png'
+                    ),
                 },
                 function (response) {
                     console.log(response)
@@ -99,22 +129,4 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 })
 
 //extension activeness indicator: switching extension icon depending on tab url
-chrome.tabs.onActivated.addListener(function () {
-    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-        const activeTab = tabs[0]
-
-        chrome.storage.sync.get(['settings']).then((result) => {
-            const urls = result.settings.map((s) => s.url)
-
-            for (const url of urls) {
-                if (activeTab.url.includes(url)) {
-                    chrome.action.setIcon({ path: '/assets/img/icon-38.png' })
-                } else {
-                    chrome.action.setIcon({
-                        path: '/assets/img/icon_grey-38.png',
-                    })
-                }
-            }
-        })
-    })
-})
+chrome.tabs.onActivated.addListener(setExtensionStatusIcon)
