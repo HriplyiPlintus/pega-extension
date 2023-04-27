@@ -23,18 +23,6 @@ function setExtensionStatusIcon() {
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     setExtensionStatusIcon()
-    //console.log('tabId', tabId)
-    //console.log('changeInfo', changeInfo)
-    console.log('tab', tab)
-    console.log('processed tabs', processedTabs)
-    console.log(
-        `processing tab: ${tabId} title: ${tab.title} status: ${changeInfo.status}`
-    )
-
-    console.log(
-        'copy-done.png',
-        chrome.runtime.getURL('./assets/img/copy-done.png')
-    )
 
     if (processedTabs.includes(tabId)) {
         return
@@ -85,20 +73,17 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 })
 
 function injectJavascript(tabId, jsFilesArr, callback) {
-    console.log('trying to inject', jsFilesArr)
     chrome.scripting
         .executeScript({
             target: { tabId: tabId },
             files: [...jsFilesArr],
         })
         .then(() => {
-            console.log(`INJECTED THE FOREGROUND SCRIPT ${jsFilesArr}`)
-
             if (callback) {
                 callback()
             }
         })
-        .catch((err) => console.log(err))
+        .catch((err) => console.error(err))
 }
 
 function injectCSS(tabId) {
@@ -108,17 +93,14 @@ function injectCSS(tabId) {
             files: ['./build/styles.css'],
         })
         .then(() => {
-            console.log('INJECTED THE FOREGROUND CSS')
+            console.debug('INJECTED THE FOREGROUND CSS')
         })
-        .catch((err) => console.log(err))
+        .catch((err) => console.error(err))
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    console.log(message)
-    console.log('sender', sender)
     const tabId = sender.tab.id
 
-    console.log('sendResponse', sendResponse)
     if (message.script) {
         injectJavascript(tabId, [`./build/content_scripts/${message.script}`])
     }
