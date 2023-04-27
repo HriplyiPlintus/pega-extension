@@ -79,7 +79,10 @@ function addSqlWithInserts() {
 
             if (query && insertsRow) {
                 const copyIcon = document.createElement('img')
-                copyIcon.setAttribute('src', 'webwb/pzCopyPaste.png')
+                copyIcon.setAttribute(
+                    'src',
+                    chrome.runtime.getURL('./assets/img/copy.png')
+                )
                 copyIcon.setAttribute('sql-copied', false)
                 copyIcon.style.top = '5px'
                 copyIcon.style.right = '5px'
@@ -91,7 +94,7 @@ function addSqlWithInserts() {
                 const copiedIcon = document.createElement('img')
                 copiedIcon.setAttribute(
                     'src',
-                    'webwb/pyWorkConfirmCheckmark.png'
+                    chrome.runtime.getURL('./assets/img/copy-done.png')
                 )
                 copiedIcon.classList.add('sql-with-inserts-copied')
                 copiedIcon.style.top = '5px'
@@ -171,17 +174,3 @@ function addSqlWithInserts() {
         }
     }
 }
-
-chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
-    if (request.copyImgUrl) {
-        document.querySelector('.sql-with-inserts-copy').src =
-            request.copyImgUrl
-    }
-    if (request.doneImgUrl) {
-        document.querySelector('.sql-with-inserts-copied').src =
-            request.doneImgUrl
-    }
-
-    sendResponse({ success: true })
-    return true
-})

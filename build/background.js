@@ -27,29 +27,13 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (processedTabs.includes(tabId)) {
         return
     } else if (tab.title.includes('Properties on Page TraceEvent')) {
-        function sendIconsURL() {
-            chrome.tabs.sendMessage(
-                tabId,
-                {
-                    copyImgUrl: chrome.runtime.getURL('./assets/img/copy.png'),
-                    //doneImgUrl: chrome.runtime.getURL('./assets/img/done.png'),
-                    doneImgUrl: chrome.runtime.getURL(
-                        './assets/img/copy-done.png'
-                    ),
-                },
-                function (response) {
-                    console.log(response)
-                }
-            )
-        }
-
         injectJavascript(
             tabId,
             [
                 './build/lib/sqlformatter.min.js',
                 './build/content_scripts/tracer-sql-with-inserts.js',
-            ],
-            sendIconsURL
+            ]
+            //sendIconsURL
         )
 
         processedTabs.push(tabId)
