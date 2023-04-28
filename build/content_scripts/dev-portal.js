@@ -2,6 +2,8 @@ console.log('hi there!')
 
 /*
 _tabIframeLoadedCallback - парсит пега табу
+getCurrentOpenTabElement - достает нод элемент открытой табы
+
 //это для тестов только. прокидываение скрипта в страницу
 let s = document.createElement('script')
 s.src = chrome.runtime.getURL('assets/war/dev-portal.js')
@@ -13,62 +15,59 @@ s.onload = function () {
 */
 
 /*
-    _visited массив айдишников таб. причем, если пользователь закрывает табу, 
+    visited - интерфейс взаимодействия с посещенными табами 
+    массив айдишников таб. причем, если пользователь закрывает табу, 
     то она удаляется из массива, чтобы нельзя было больше перейти на нее по истории
 
     тип объявлен в глобальном объекте window, потому что при рефреше пега табы, 
     скрипт пытается отработать заново. будто это какой-то хитрый рефреш стейта
 */
+
 if (typeof Tabs !== 'function') {
+    console.log('typeof Tabs !== function executed')
     window.Tabs = class {
         constructor() {
-            //this._visited = []
             this._tabsInfo = {}
             this.tabsRef = document.querySelector(
                 '#workarea div.tStrCntr ul[role="tablist"]'
             )
 
-            /* добавить все существующие табы в список посещенных, потому что иногда там бывает только текущая таба
-            например, после того, как браузурная таба открывается заново без релогина или просто рефреш браузерной табы
-            в будущем это должно быть пофикшено хранением стейта в local storage */
-            /*
-            const tabsAtStart = this.tabsRef.querySelectorAll('li[role="tab"]')
-            for (let tab of tabsAtStart) {
-                this._visited.push(tab.id)
-            }
-            */
-
-            this.styleTabs()
+            //feature: IDK if you was pissed off or not by this but now you can't select tab's text
+            this.tabsRef.style.userSelect = 'none'
 
             this.setCurrent = this.setCurrent.bind(this)
             this.remove = this.remove.bind(this)
             this.getCurrent = this.getCurrent.bind(this)
             this.getPrevious = this.getPrevious.bind(this)
 
-            //клики таб
+            //клики по табам
             this.tabsListClickHandler = this.tabsListClickHandler.bind(this)
+            this.tabsRef.addEventListener('click', this.tabsListClickHandler)
+
+            //обработка клика по табе средней клавишей мыши
             this.tabsListMiddleClickHandler =
                 this.tabsListMiddleClickHandler.bind(this)
-
-            this.tabsRef.addEventListener('click', this.tabsListClickHandler)
             this.tabsRef.addEventListener(
                 'auxclick',
                 this.tabsListMiddleClickHandler
             )
 
+            //делаю все открытые табы сразу draggable
+            for (const t of this.tabsRef.querySelectorAll('li[role="tab"]')) {
+                t?.setAttribute('draggable', true)
+            }
+
+            /* иногда в списке посещенных бывает только текущая таба например, после того,
+            как браузурная таба открывается заново без релогина или просто рефреш браузерной табы */
             //список старых таб из хранилища, дедублицированные и отсортированные
             const visitedRaw = this.visited.getAll() //список посещенных таб до рефреша в оригинальном виде
-            const visitedTabsArr = [...new Set(visitedRaw)].sort()
+            const visitedTabsArr = [...new Set(visitedRaw)]
 
+            //список всех открытых таб
             const newTabsRaw = [
                 ...this.tabsRef.querySelectorAll('li[role="tab"]'),
             ].map((t) => t.id)
             let newTabsArr = newTabsRaw //список таб дедублицированный
-
-            //TODO: сделать все табы draggable сразу
-            for (const t of this.tabsRef.querySelectorAll('li[role="tab"]')) {
-                t?.setAttribute('draggable', true)
-            }
 
             //если все табы до рефреша есть в списке текущих таб, то использум список до рефреша
             for (const vt of visitedTabsArr) {
@@ -77,24 +76,20 @@ if (typeof Tabs !== 'function') {
                 if (ntIndex) {
                     newTabsArr.splice(ntIndex, 1)
                 }
+
+                if (newTabsArr.length === 0) {
+                    break
+                }
             }
 
+            //инициалзиция списка посещенных таб
             if (newTabsArr.length === 0) {
                 this.visited.setAll(newTabsRaw.concat(visitedRaw)) //перекладываем старый список в новый
             } else {
-                this.visited.setAll(newTabsRaw)
+                this.visited.setAll(newTabsRaw) //если же старый список не относится к текущим табам, применяем список текущих таб
             }
 
-            /* TODO это делать надо не всегда навреное, ну мб всегда, но из списка 
-                имеющихся нужно потереть последнюю (текущую)
-                это сценарий перезагрузки окна 
-            */
-            //инициализация. добавить открытую табу в список открытых таб
-            const currentTab = this.tabsRef.querySelector(
-                'li[role="tab"][tabindex="0"]'
-            )
-
-            this.setCurrent(currentTab)
+            this.setCurrent(this.getCurrentOpenTabElement()) //инициализируем открытую табу
 
             this._tabsObserver.observer = new MutationObserver(
                 this._tabsObserver.callback
@@ -115,10 +110,19 @@ if (typeof Tabs !== 'function') {
             this.visited.setAll = this.visited.setAll.bind(this)
         }
 
+        getCurrentOpenTabElement() {
+            const currentTab = this.tabsRef.querySelector(
+                'li[role="tab"][tabindex="0"]'
+            )
+
+            return currentTab
+        }
+
         //инициализирует список таб для переключения (список visited)
+        //TODO: перенести в эту функцию часть из конструктора
         initVisitedTabs() {}
 
-        //интерфейс взаимодействия с _visited
+        //интерфейс взаимодействия с visited; TODO: для getAll и length нужно хранить в памяти, чтобы не обрщтаься в local storage всегда
         /* данные хранятся в visited в sessionStorage, взаимодействие происходит через интерфейсные функции */
         visited = {
             push: (tabId) => {
@@ -177,12 +181,8 @@ if (typeof Tabs !== 'function') {
             }
         }
 
-        styleTabs() {
-            //feature: IDK if you was pissed or not but now you can't select tab's text
-            this.tabsRef.style.userSelect = 'none'
-        }
-
         setCurrent(tab) {
+            console.log('setCurrent', tab)
             tab?.setAttribute('draggable', true) //делает табу draggable
             //добавить, если последняя открытая таба отличается от той, которую хотят добавить или пока таб не было
             if (
@@ -576,6 +576,8 @@ if (typeof Tabs !== 'function') {
             }
         }
 
+        //хендлер выбора табы - вызывает setCurrent
+        //вероятно, будут проблемы, если пользоатель двигается по табам не кликами. не знаю, возможно ли это
         tabsListClickHandler(e) {
             let existingTabs = []
             for (let tab of this.tabsRef.querySelectorAll('li[role="tab"]')) {
@@ -669,4 +671,7 @@ if (typeof Tabs !== 'function') {
 
 if (!window.tabs) {
     window.tabs = new window.Tabs()
+} else {
+    //произошел рефреш рула через actions > refresh
+    window.tabs.setCurrent(window.tabs.getCurrentOpenTabElement())
 }
