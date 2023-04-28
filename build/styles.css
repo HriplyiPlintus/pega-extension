@@ -23,3 +23,7 @@
 .pega-extension__copy-value {
     cursor: copy;
 }
+
+.pega-extension__rule-info-lable {
+    margin-right: 0.7em !important;
+}

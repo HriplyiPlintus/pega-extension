@@ -65,9 +65,10 @@ if (typeof Tabs !== 'function') {
             ].map((t) => t.id)
             let newTabsArr = newTabsRaw //список таб дедублицированный
 
-            //newTabsArr.sort() //redundant
-            console.log('visited tabs arr (before refresh)', visitedTabsArr)
-            console.log('new tabs arr', newTabsArr)
+            //TODO: сделать все табы draggable сразу
+            for (const t of this.tabsRef.querySelectorAll('li[role="tab"]')) {
+                t?.setAttribute('draggable', true)
+            }
 
             //если все табы до рефреша есть в списке текущих таб, то использум список до рефреша
             for (const vt of visitedTabsArr) {
@@ -93,9 +94,7 @@ if (typeof Tabs !== 'function') {
                 'li[role="tab"][tabindex="0"]'
             )
 
-            console.log('before set current ', currentTab)
             this.setCurrent(currentTab)
-            console.log('after set current', this.visited.getAll())
 
             this._tabsObserver.observer = new MutationObserver(
                 this._tabsObserver.callback
@@ -114,8 +113,6 @@ if (typeof Tabs !== 'function') {
             this.visited.getAll = this.visited.getAll.bind(this)
             this.visited.length = this.visited.length.bind(this)
             this.visited.setAll = this.visited.setAll.bind(this)
-
-            console.log('constructor executed', this.visited.getAll())
         }
 
         //инициализирует список таб для переключения (список visited)
@@ -164,10 +161,16 @@ if (typeof Tabs !== 'function') {
             //свитчит табы в пеге!!!
 
             if (e.metaKey && e.key === 'e') {
+                console.log('tab switch indicated')
                 e.preventDefault()
+
+                console.log('length of visited', this.visited.length())
                 const prevTabIndex = this.visited.length() - 2
+
+                console.log('tab', prevTabIndex)
+
                 if (prevTabIndex >= 0) {
-                    const prevTab = this.visited[prevTabIndex]
+                    const prevTab = this.visited.getAll()[prevTabIndex]
 
                     this.tabsRef.querySelector(`li#${prevTab}`)?.click()
                 }
@@ -180,8 +183,7 @@ if (typeof Tabs !== 'function') {
         }
 
         setCurrent(tab) {
-            tab.setAttribute('draggable', true) //делает табу draggable
-            console.log('session storage', window.sessionStorage.visited)
+            tab?.setAttribute('draggable', true) //делает табу draggable
             //добавить, если последняя открытая таба отличается от той, которую хотят добавить или пока таб не было
             if (
                 this.visited.length() === 0 ||
@@ -189,10 +191,6 @@ if (typeof Tabs !== 'function') {
             ) {
                 this.visited.push(tab.id) //добавляет в стек посещенных таб
                 if (!this._tabsInfo[tab.id]) {
-                    console.log('no tab info')
-                    console.log(tab.id + ' = ', window.sessionStorage.visited)
-                    //this._iframeLoaded(tab.id)
-
                     this._tabsInfo[tab.id] = {
                         loadingTimeout: 120000,
                     }
@@ -204,7 +202,6 @@ if (typeof Tabs !== 'function') {
                     )
                     this._tabsInfo[tab.id].intervalId = intervalId //таймаут на загрузку. после этого попыток загрузиться больше не будет
                 } else {
-                    console.log('tab info exists')
                     //иногда ивент для лисенер для keydown слетает и переключение таб не работает
                     const iframe = document.querySelector(
                         `div.tabContent .iframe-wrapper[aria-labelledby="${tab.id}"] iframe`
@@ -223,8 +220,6 @@ if (typeof Tabs !== 'function') {
                 }
             } else {
                 console.log('skipped a lot')
-                console.log(this.visited.length())
-                console.log(this.visited[this.visited.length() - 1], tab.id)
             }
         }
 
@@ -241,7 +236,7 @@ if (typeof Tabs !== 'function') {
                     iframeDoc.querySelector('.layout-noheader-workarea_header') //это для бранча
 
                 if (!innerHeader) {
-                    console.log('not a regular tab, check manually')
+                    console.debug('not a regular tab, check manually', tabId)
                     return
                 } else {
                     //если наконец нашли шапку табы, прекращаем опрашивать табу
@@ -292,7 +287,7 @@ if (typeof Tabs !== 'function') {
                     ?.querySelector('a')
                     ?.innerText.trim()
 
-                //добавление функции копирования класс рула в клипборд
+                //добавление функции копирования класс рула в клипборд TODO: убрать в отельную функцию?
                 const classLabelElement = classElements?.querySelector('label')
 
                 //добавление стилей в iframe
@@ -307,29 +302,12 @@ if (typeof Tabs !== 'function') {
                     classLabelElement.classList.add(
                         'pega-extension__copy-value'
                     )
+
+                    //функция копирования класса рула в клипборд
                     classLabelElement.addEventListener('click', () => {
                         navigator.clipboard.writeText(className)
                     })
                 }
-
-                /*
-                const copyImgWrapper = document.createElement('div')
-                copyImgWrapper.classList.add('pega-extension__copy-value-icon')
-
-                const copyImg = document.createElement('img')
-                copyImgWrapper.appendChild(copyImg)
-                copyImg.setAttribute(
-                    'src',
-                    chrome.runtime.getURL('assets/img/copy.png')
-                )
-                classLabelElement?.classList.add('pega-extension__icon-hidden')
-
-                classLabelElement?.addEventListener('mouseover', () => {})
-
-                classLabelElement?.appendChild(copyImgWrapper)
-                */
-
-                //здесь конец тестов
 
                 //Purpose для decision table
                 const ruleNameElement =
@@ -369,7 +347,7 @@ if (typeof Tabs !== 'function') {
                 const branchName = rulesetData[2] ?? undefined
                 const rulesetName = rulesetData[0]?.split(':')[0]
 
-                this._tabsInfo[tabId].info = {
+                const tabInfo = {
                     ruleType: ruleTypeName,
                     ruleLabel: ruleLabel,
                     ruleAvailability: ruleAvailability,
@@ -381,7 +359,42 @@ if (typeof Tabs !== 'function') {
                     rulesCount: rulesCount,
                 }
 
-                console.log('this tab info', this.getInfo(tabId))
+                this._tabsInfo[tabId].info = tabInfo
+
+                //добавление лейбла SIG
+                if (
+                    !innerHeader.querySelector('#pega-extension__rule-info-sig')
+                ) {
+                    const sigDiv = document.createElement('div')
+                    const sigLabel = document.createElement('label')
+                    sigLabel.classList.add('pega-extension__copy-value')
+                    sigLabel.classList.add('rule_keys_dataLabelForWrite')
+                    sigLabel.textContent = 'SIG'
+
+                    sigDiv.appendChild(sigLabel)
+                    sigDiv.classList.add('flex')
+                    sigDiv.classList.add('content-item')
+                    sigDiv.classList.add('pega-extension__rule-info-lable')
+                    sigDiv.setAttribute('id', 'pega-extension__rule-info-sig')
+
+                    sigLabel.addEventListener('click', () => {
+                        const signature = [
+                            { type: 'attr', attr: 'ruleType' },
+                            { type: 'text', value: ' ' },
+                        ]
+                        navigator.clipboard.writeText(
+                            `${tabInfo.ruleType} ${tabInfo.className}.${tabInfo.ruleName}`
+                        )
+                    })
+
+                    classElements
+                        ?.closest('div.rule-details')
+                        ?.insertBefore(
+                            sigDiv,
+                            classElements.closest('div.rule-details').firstChild
+                        )
+                }
+                //добавление лейбла SIG
             } else if (tabContentElement) {
                 //for home page - она не в iframe
                 const ruleLabel = document
@@ -451,7 +464,6 @@ if (typeof Tabs !== 'function') {
 
         //ждет загрузки iframe и вызывает коллбек
         _iframeLoaded(tabId) {
-            console.log(tabId, window.sessionStorage.visited)
             return function () {
                 //уменьшаем количество попыток
                 if (
@@ -472,11 +484,6 @@ if (typeof Tabs !== 'function') {
                     const maxTimerId = existingTimers.sort(function (a, b) {
                         return a - b
                     })[existingTimers.length - 1]
-
-                    console.log(
-                        `interval should be cleared for ${tabId} and max times id is ${maxTimerId}`,
-                        existingTimers
-                    )
 
                     for (let i = 1; i < maxTimerId * 10; i++) {
                         //проверка, что id нет в списке с табами
@@ -531,7 +538,6 @@ if (typeof Tabs !== 'function') {
         }
 
         remove(tabId) {
-            console.log('remove method before', window.sessionStorage)
             let duplTab = ''
             let deduplicatedArr = []
 
@@ -550,9 +556,6 @@ if (typeof Tabs !== 'function') {
             this.visited.setAll(deduplicatedArr)
 
             delete this._tabsInfo[tabId] //удаление информации о табе
-
-            //console.log('list of tabs after removal:', this._visited)
-            console.log('remove method after', window.sessionStorage)
         }
 
         getCurrent() {
@@ -583,7 +586,6 @@ if (typeof Tabs !== 'function') {
 
             //доп защита, чтобы добавлять только те табы, которые реально есть в списке
             if (selectedTab && existingTabs.includes(selectedTab.id)) {
-                //console.log('tab to be added from click', selectedTab.id)
                 this.setCurrent(selectedTab) //добавление кликнутой табы в список посещенных таб
             }
         }
@@ -644,21 +646,17 @@ if (typeof Tabs !== 'function') {
         _tabsObserver = {
             config: { childList: true },
             callback: function (mutationList, observer) {
-                console.log('mutations lis', mutationList)
                 //пытаюсь найти закрытие табы
                 for (const mr of mutationList) {
                     if (mr.type === 'childList') {
                         for (const node of mr.removedNodes) {
                             if (node.getAttribute('role') === 'tab') {
-                                console.log('tab to be removed', node.id)
-                                console.log(window.sessionStorage.visited)
                                 window.tabs.remove(node.getAttribute('id'))
                             }
                         }
 
                         for (const node of mr.addedNodes) {
                             if (node.getAttribute('role') === 'tab') {
-                                console.log('tab to be added', node.id)
                                 window.tabs.setCurrent(node)
                             }
                         }
@@ -671,39 +669,4 @@ if (typeof Tabs !== 'function') {
 
 if (!window.tabs) {
     window.tabs = new window.Tabs()
-    console.log(window)
 }
-
-/*
-//конфиг мьютейшн обзервера
-//на какие изменения подписаться
-const config = {
-    childList: true,
-}
-
-const callback = (mutationList, observer) => {
-    console.log('mutations lis', mutationList)
-    //пытаюсь найти закрытие табы
-    for (const mr of mutationList) {
-        if (mr.type === 'childList') {
-            for (const node of mr.removedNodes) {
-                if (node.getAttribute('role') === 'tab') {
-                    console.log('tab to be removed', node.id)
-                    window.tabs.remove(node.getAttribute('id'))
-                }
-            }
-
-            for (const node of mr.addedNodes) {
-                if (node.getAttribute('role') === 'tab') {
-                    console.log('tab to be added', node.id)
-                    window.tabs.setCurrent(node)
-                }
-            }
-        }
-    }
-}
-
-const observer = new MutationObserver(callback)
-
-observer.observe(window.tabs.tabsRef, config)
-*/
