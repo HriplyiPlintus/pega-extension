@@ -24,10 +24,11 @@ s.onload = function () {
 */
 
 if (typeof Tabs !== 'function') {
-    console.log('typeof Tabs !== function executed')
     window.Tabs = class {
         constructor() {
             this._tabsInfo = {}
+            this.TAB_CONTENT_SCAN_TIMOUT = 200
+            this.TAB_CONTENT_LOADING_TIMEOUT = 120000
             this.tabsRef = document.querySelector(
                 '#workarea div.tStrCntr ul[role="tablist"]'
             )
@@ -61,32 +62,23 @@ if (typeof Tabs !== 'function') {
             как браузурная таба открывается заново без релогина или просто рефреш браузерной табы */
             //список старых таб из хранилища, дедублицированные и отсортированные
             const visitedRaw = this.visited.getAll() //список посещенных таб до рефреша в оригинальном виде
-            const visitedTabsArr = [...new Set(visitedRaw)]
+            const visitedTabsArr = [...new Set(visitedRaw)].sort() //дедублицированный список таб, посещенных до рефреша
 
             //список всех открытых таб
             const newTabsRaw = [
                 ...this.tabsRef.querySelectorAll('li[role="tab"]'),
             ].map((t) => t.id)
-            let newTabsArr = newTabsRaw //список таб дедублицированный
 
-            //если все табы до рефреша есть в списке текущих таб, то использум список до рефреша
-            for (const vt of visitedTabsArr) {
-                const ntIndex = newTabsArr.indexOf(vt)
+            let newTabsArr = [...new Set(newTabsRaw.map((obj) => obj))].sort() //список таб дедублицированный
 
-                if (ntIndex) {
-                    newTabsArr.splice(ntIndex, 1)
-                }
-
-                if (newTabsArr.length === 0) {
-                    break
-                }
-            }
-
-            //инициалзиция списка посещенных таб
-            if (newTabsArr.length === 0) {
-                this.visited.setAll(newTabsRaw.concat(visitedRaw)) //перекладываем старый список в новый
-            } else {
+            if (
+                newTabsArr.length !== visitedTabsArr.length ||
+                JSON.stringify(newTabsArr) !== JSON.stringify(visitedTabsArr)
+            ) {
+                //если списки посещенных и тукущих не совпадают
                 this.visited.setAll(newTabsRaw) //если же старый список не относится к текущим табам, применяем список текущих таб
+            } else {
+                this.visited.setAll(visitedRaw) //перекладываем старый список в новый
             }
 
             this.setCurrent(this.getCurrentOpenTabElement()) //инициализируем открытую табу
@@ -162,16 +154,11 @@ if (typeof Tabs !== 'function') {
         flushTabInfo(tabId) {}
 
         onTabSwitch(e) {
-            //свитчит табы в пеге!!!
-
+            //свитчит табы в дев студии
             if (e.metaKey && e.key === 'e') {
-                console.log('tab switch indicated')
                 e.preventDefault()
 
-                console.log('length of visited', this.visited.length())
                 const prevTabIndex = this.visited.length() - 2
-
-                console.log('tab', prevTabIndex)
 
                 if (prevTabIndex >= 0) {
                     const prevTab = this.visited.getAll()[prevTabIndex]
@@ -183,44 +170,53 @@ if (typeof Tabs !== 'function') {
 
         setCurrent(tab) {
             console.log('setCurrent', tab)
+
             tab?.setAttribute('draggable', true) //делает табу draggable
+
             //добавить, если последняя открытая таба отличается от той, которую хотят добавить или пока таб не было
+            if (
+                this.visited.getAll()[this.visited.length() - 1] !== tab.id ||
+                this.visited.length() === 0
+            ) {
+                this.visited.push(tab.id) //добавляет в стек посещенных таб
+            }
+
+            //если в пока нет информации о табе
+            if (!this._tabsInfo[tab.id]) {
+                //добавлем настройку таймаута
+                this._tabsInfo[tab.id] = {
+                    loadingTimeout: this.TAB_CONTENT_LOADING_TIMEOUT,
+                }
+
+                //раз в секунду будет пытаться достать данные из табы
+                const intervalId = setInterval(
+                    this._iframeLoaded(tab.id),
+                    this.TAB_CONTENT_SCAN_TIMOUT
+                )
+                this._tabsInfo[tab.id].intervalId = intervalId //таймаут на загрузку. после этого попыток загрузиться больше не будет
+            } else {
+                //иногда ивент для лисенер для keydown слетает и переключение таб не работает
+                const iframe = document.querySelector(
+                    `div.tabContent .iframe-wrapper[aria-labelledby="${tab.id}"] iframe`
+                ) //TODO: этот кусок повторяется, просто поищи. прям 3 строки. их нужно вынести в отдельную функцию
+
+                if (iframe) {
+                    const iframeDoc =
+                        iframe.contentDocument || iframe.contentWindow.document
+
+                    iframeDoc.body.addEventListener('keydown', this.onTabSwitch)
+                }
+            }
+
+            /*
             if (
                 this.visited.length() === 0 ||
                 this.visited.getAll()[this.visited.length() - 1] !== tab.id
             ) {
-                this.visited.push(tab.id) //добавляет в стек посещенных таб
-                if (!this._tabsInfo[tab.id]) {
-                    this._tabsInfo[tab.id] = {
-                        loadingTimeout: 120000,
-                    }
-
-                    //раз в секунду будет пытаться достать данные из табы
-                    const intervalId = setInterval(
-                        this._iframeLoaded(tab.id),
-                        1000
-                    )
-                    this._tabsInfo[tab.id].intervalId = intervalId //таймаут на загрузку. после этого попыток загрузиться больше не будет
-                } else {
-                    //иногда ивент для лисенер для keydown слетает и переключение таб не работает
-                    const iframe = document.querySelector(
-                        `div.tabContent .iframe-wrapper[aria-labelledby="${tab.id}"] iframe`
-                    ) //TODO: этот кусок повторяется, просто поищи. прям 3 строки. их нужно вынести в отдельную функцию
-
-                    if (iframe) {
-                        const iframeDoc =
-                            iframe.contentDocument ||
-                            iframe.contentWindow.document
-
-                        iframeDoc.body.addEventListener(
-                            'keydown',
-                            this.onTabSwitch
-                        )
-                    }
-                }
             } else {
                 console.log('skipped a lot')
             }
+            */
         }
 
         //достает всю инфу из табы пеги == парсит табу
@@ -495,7 +491,8 @@ if (typeof Tabs !== 'function') {
                     return //cancel all orphan timers and exit
                 }
 
-                this._tabsInfo[tabId].loadingTimeout -= 1000
+                this._tabsInfo[tabId].loadingTimeout -=
+                    this.TAB_CONTENT_SCAN_TIMOUT
 
                 //очищаем интервал
                 if (this._tabsInfo[tabId].loadingTimeout < 0) {
