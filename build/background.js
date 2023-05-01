@@ -5,7 +5,7 @@ function setExtensionStatusIcon() {
     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
         const activeTab = tabs[0]
 
-        chrome.storage.sync.get(['settings']).then((result) => {
+        chrome.storage.sync.get('settings').then((result) => {
             const urls = result.settings.map((s) => s.url)
 
             for (const url of urls) {
@@ -27,14 +27,10 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (processedTabs.includes(tabId)) {
         return
     } else if (tab.title.includes('Properties on Page TraceEvent')) {
-        injectJavascript(
-            tabId,
-            [
-                './build/lib/sqlformatter.min.js',
-                './build/content_scripts/tracer-sql-with-inserts.js',
-            ]
-            //sendIconsURL
-        )
+        injectJavascript(tabId, [
+            './build/lib/sqlformatter.min.js',
+            './build/content_scripts/tracer-sql-with-inserts.js',
+        ])
 
         processedTabs.push(tabId)
     } else if (
