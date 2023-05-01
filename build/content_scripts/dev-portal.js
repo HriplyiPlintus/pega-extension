@@ -100,6 +100,8 @@ if (typeof Tabs !== 'function') {
             this.visited.getAll = this.visited.getAll.bind(this)
             this.visited.length = this.visited.length.bind(this)
             this.visited.setAll = this.visited.setAll.bind(this)
+
+            this.addLogsToolbarItem()
         }
 
         getCurrentOpenTabElement() {
@@ -662,6 +664,126 @@ if (typeof Tabs !== 'function') {
                     }
                 }
             },
+        }
+
+        addLogsToolbarItem() {
+            /* 
+            по double click будет открываться общее окно логов пеги
+            по клику будут открываться либо PEGA логи, либо external логи
+            */
+            /*
+            <div>
+                <span>
+                    <a><a dblclick/><a click/>
+                    <img>Label</a>
+                </span>
+            </div>
+            */
+
+            if (document.querySelector('#pega-extension__log-icon')) {
+                return
+            }
+
+            const tracerIcon = document.querySelector('.footer-layout .tracer')
+            const logFileWrapper = document.createElement('div')
+            logFileWrapper.setAttribute('id', 'pega-extension__log-icon')
+            ;['content-item', 'flex'].map((c) =>
+                logFileWrapper.classList.add(c)
+            ) //'content-field','flex-row'
+
+            const logFileSpan = document.createElement('span')
+            logFileWrapper.appendChild(logFileSpan)
+
+            const envSettingLogsIcon = 'ENV_LOGS__EXT' //'ENV_LOGS__INT_PEGA', ENV_LOGS__EXT, ENV_LOGS__INT_COMMON
+            const logSource = {
+                ENV_LOGS__EXT: {
+                    'data-click':
+                        '[["openUrlInWindow", ["#~pxRequestor.pxExternalLogURL~#", "Log Files", "height=700,width=1200,location=1,menubar=1,toolbar=1,status=1,resizable=1,location=1,scrollbars=1", "false",":event","true", "false"]]]',
+                    name: 'pzStudioFooter_pyDisplayHarness_4',
+                },
+                ENV_LOGS__INT_COMMON: {
+                    'data-click':
+                        '[["openUrlInWindow", ["/prweb/PRAuth/app/PegaRULES_/pbdorj4V2aBoI4ScEONLsEaxdEWiqDby*/!TABTHREAD0?pyActivity=@baseclass.pzProcessURLInWindow&pyPreActivity=showStream&pyTargetStream=LogFileDownload&pyTargetFrame=&pyBasePage=&pyApplyTo=", "Log Files", "height=700,width=1200,location=0,menubar=0,toolbar=0,status=0,resizable=1,location=0,scrollbars=1", "false",":event","false", "false"]]]',
+                    name: 'pxLogsTools_LogsLandingPage_7',
+                },
+                ENV_LOGS__INT_PEGA: {
+                    href: '/prweb/PRAuth/app/PegaRULES_/pbdorj4V2aBoI4ScEONLsEaxdEWiqDby*/!TABTHREAD0?pyStream=LogViewer&initDisplay=true&logType=PEGA',
+                },
+            }
+
+            const logSourceSettings = logSource[envSettingLogsIcon]
+
+            const logFileA = document.createElement('a')
+            logFileA.classList.add('pega-extension__log-a')
+
+            //будет открывать по клику
+            const logFileAClick = document.createElement('a')
+            logFileA.appendChild(logFileAClick)
+            if (envSettingLogsIcon === 'ENV_LOGS__INT_PEGA') {
+                logFileAClick.setAttribute('target', 'popup')
+                logFileAClick.addEventListener('click', () => {
+                    window.open(
+                        logSource.ENV_LOGS__INT_PEGA.href,
+                        'Log files',
+                        'height=700,width=1200'
+                    )
+                })
+            } else {
+                logFileAClick.dataset.click = logSourceSettings['data-click']
+                logFileAClick.setAttribute('name', logSourceSettings['name'])
+                logFileAClick.setAttribute('href', '#')
+                logFileAClick.setAttribute('onclick', 'pd(event);')
+            }
+
+            //по двойному клику открывать общее окно логов
+            const logFileADBLClick = document.createElement('a')
+            logFileA.appendChild(logFileADBLClick)
+            const openLogsSettings = logSource.ENV_LOGS__INT_COMMON
+
+            logFileADBLClick.dataset.click = openLogsSettings['data-click']
+            logFileADBLClick.setAttribute('name', openLogsSettings['name'])
+            logFileADBLClick.setAttribute('href', '#')
+            logFileADBLClick.setAttribute('onclick', 'pd(event);')
+
+            let timer
+            logFileA.addEventListener('click', (event) => {
+                if (event.detail === 1) {
+                    timer = setTimeout(() => {
+                        console.log('click')
+                        logFileAClick.click()
+                    }, 200)
+                }
+            })
+
+            logFileA.addEventListener('dblclick', () => {
+                clearTimeout(timer)
+                console.log('dblclick')
+                logFileADBLClick.click()
+            })
+
+            logFileSpan.appendChild(logFileA)
+
+            const logFileImg = document.createElement('img')
+            logFileA.appendChild(logFileImg)
+            logFileA.appendChild(document.createTextNode('Logs'))
+            logFileA.classList.add('Footer_nav')
+            logFileImg.classList.add('pega_extension__log-icon')
+            logFileImg.src = chrome.runtime.getURL('./assets/img/log.png')
+            logFileImg.addEventListener('click', (e) => {
+                e.target.parentElement.click()
+            })
+
+            logFileImg.addEventListener('dblclick', (e) => {
+                const dblclickEvent = new MouseEvent('dblclick', {
+                    view: window,
+                    bubbles: true,
+                    cancelable: true,
+                })
+
+                e.target.parentElement.dispatchEvent(dblclickEvent)
+            })
+
+            tracerIcon.parentElement.insertBefore(logFileWrapper, tracerIcon)
         }
     }
 }

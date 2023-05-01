@@ -27,3 +27,16 @@
 .pega-extension__rule-info-lable {
     margin-right: 0.7em !important;
 }
+
+.pega-extension__log-a {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    user-select: none;
+}
+
+.pega_extension__log-icon {
+    height: 16px;
+    opacity: 0.8;
+}
