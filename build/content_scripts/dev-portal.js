@@ -58,6 +58,41 @@ if (typeof Tabs !== 'function') {
                 t?.setAttribute('draggable', true)
             }
 
+            this.initVisitedTabs = this.initVisitedTabs.bind(this)
+            this.initVisitedTabs()
+
+            this._tabsObserver.observer = new MutationObserver(
+                this._tabsObserver.callback
+            )
+
+            this._tabsObserver.observer.observe(
+                this.tabsRef,
+                this._tabsObserver.config
+            )
+
+            this.onTabSwitch = this.onTabSwitch.bind(this)
+            window.addEventListener('keydown', this.onTabSwitch)
+
+            //binding
+            this.visited.push = this.visited.push.bind(this)
+            this.visited.getAll = this.visited.getAll.bind(this)
+            this.visited.length = this.visited.length.bind(this)
+            this.visited.setAll = this.visited.setAll.bind(this)
+
+            this.addLogsToolbarItem() //add logs icon for tooter toolbar
+        }
+
+        getCurrentOpenTabElement() {
+            const currentTab = this.tabsRef.querySelector(
+                'li[role="tab"][tabindex="0"]'
+            )
+
+            return currentTab
+        }
+
+        //инициализирует список таб для переключения (список visited)
+        //TODO: перенести в эту функцию часть из конструктора
+        initVisitedTabs() {
             /* иногда в списке посещенных бывает только текущая таба например, после того,
             как браузурная таба открывается заново без релогина или просто рефреш браузерной табы */
             //список старых таб из хранилища, дедублицированные и отсортированные
@@ -82,39 +117,7 @@ if (typeof Tabs !== 'function') {
             }
 
             this.setCurrent(this.getCurrentOpenTabElement()) //инициализируем открытую табу
-
-            this._tabsObserver.observer = new MutationObserver(
-                this._tabsObserver.callback
-            )
-
-            this._tabsObserver.observer.observe(
-                this.tabsRef,
-                this._tabsObserver.config
-            )
-
-            this.onTabSwitch = this.onTabSwitch.bind(this)
-            window.addEventListener('keydown', this.onTabSwitch)
-
-            //binding
-            this.visited.push = this.visited.push.bind(this)
-            this.visited.getAll = this.visited.getAll.bind(this)
-            this.visited.length = this.visited.length.bind(this)
-            this.visited.setAll = this.visited.setAll.bind(this)
-
-            this.addLogsToolbarItem()
         }
-
-        getCurrentOpenTabElement() {
-            const currentTab = this.tabsRef.querySelector(
-                'li[role="tab"][tabindex="0"]'
-            )
-
-            return currentTab
-        }
-
-        //инициализирует список таб для переключения (список visited)
-        //TODO: перенести в эту функцию часть из конструктора
-        initVisitedTabs() {}
 
         //интерфейс взаимодействия с visited; TODO: для getAll и length нужно хранить в памяти, чтобы не обрщтаься в local storage всегда
         /* данные хранятся в visited в sessionStorage, взаимодействие происходит через интерфейсные функции */
@@ -667,6 +670,7 @@ if (typeof Tabs !== 'function') {
         }
 
         addLogsToolbarItem() {
+            //'ENV_LOGS__INT_PEGA', ENV_LOGS__EXT, ENV_LOGS__INT_COMMON
             /* 
             по double click будет открываться общее окно логов пеги
             по клику будут открываться либо PEGA логи, либо external логи
