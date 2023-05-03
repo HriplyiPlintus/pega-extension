@@ -33,6 +33,10 @@ if (typeof Tabs !== 'function') {
                 '#workarea div.tStrCntr ul[role="tablist"]'
             )
 
+            if (!this.visited.currentTab) {
+                this.visited.currentTab = this.getCurrentOpenTabElement().id
+            }
+
             //feature: IDK if you was pissed off or not by this but now you can't select tab's text
             this.tabsRef.style.userSelect = 'none'
 
@@ -90,6 +94,14 @@ if (typeof Tabs !== 'function') {
             return currentTab
         }
 
+        getCurrentTabIdsArr() {
+            return (
+                [...this.tabsRef.querySelectorAll('li[role="tab"]')].map(
+                    (t) => t.id
+                ) || []
+            )
+        }
+
         //инициализирует список таб для переключения (список visited)
         //TODO: перенести в эту функцию часть из конструктора
         initVisitedTabs() {
@@ -100,9 +112,7 @@ if (typeof Tabs !== 'function') {
             const visitedTabsArr = [...new Set(visitedRaw)].sort() //дедублицированный список таб, посещенных до рефреша
 
             //список всех открытых таб
-            const newTabsRaw = [
-                ...this.tabsRef.querySelectorAll('li[role="tab"]'),
-            ].map((t) => t.id)
+            const newTabsRaw = this.getCurrentTabIdsArr()
 
             let newTabsArr = [...new Set(newTabsRaw.map((obj) => obj))].sort() //список таб дедублицированный
 
@@ -137,7 +147,20 @@ if (typeof Tabs !== 'function') {
                 visitedString =
                     visitedString?.trim() === '' ? null : visitedString
 
-                return JSON.parse(visitedString) || []
+                const visitedArr = JSON.parse(visitedString)
+
+                const resultArr = []
+                if (visitedArr.length > 0) {
+                    resultArr[0] = visitedArr[0]
+                }
+
+                for (let i = 0; i < visitedArr.length - 1; i++) {
+                    if (visitedArr[i] !== visitedArr[i + 1]) {
+                        resultArr.push(visitedArr[i + 1])
+                    }
+                }
+
+                return resultArr
             },
             length: () => {
                 return this.visited.getAll()?.length || 0
@@ -148,6 +171,7 @@ if (typeof Tabs !== 'function') {
                     JSON.stringify(newVisited)
                 )
             },
+            currentTab: '',
         }
 
         tabsInfo = {}
@@ -174,16 +198,24 @@ if (typeof Tabs !== 'function') {
         }
 
         setCurrent(tab) {
-            console.log('setCurrent', tab)
-
             tab?.setAttribute('draggable', true) //делает табу draggable
+
+            //actualize list of visited tabs on each attempt of setting current
+            const currentTabIdsArr = this.getCurrentTabIdsArr()
+
+            for (const vt of this.visited.getAll()) {
+                if (!currentTabIdsArr.includes(vt)) {
+                    this.remove(vt)
+                }
+            }
 
             //добавить, если последняя открытая таба отличается от той, которую хотят добавить или пока таб не было
             if (
-                this.visited.getAll()[this.visited.length() - 1] !== tab.id ||
+                this.visited.currentTab !== tab.id ||
                 this.visited.length() === 0
             ) {
                 this.visited.push(tab.id) //добавляет в стек посещенных таб
+                this.visited.currentTab = tab.id //TODO
             }
 
             //если в пока нет информации о табе
@@ -369,6 +401,7 @@ if (typeof Tabs !== 'function') {
                     const sigDiv = document.createElement('div')
                     const sigLabel = document.createElement('label')
                     sigLabel.classList.add('pega-extension__copy-value')
+
                     sigLabel.classList.add('rule_keys_dataLabelForWrite')
                     sigLabel.textContent = 'SIG'
 
@@ -647,22 +680,44 @@ if (typeof Tabs !== 'function') {
         }
 
         //config для mutation observer
+        /*
+        known issue fixed: tab switch and current tab setting does not work if tab open
+        occures for one of the existing tab from references component
+        */
         _tabsObserver = {
-            config: { childList: true },
+            config: {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeOldValue: true,
+            },
             callback: function (mutationList, observer) {
-                //пытаюсь найти закрытие табы
+                //work with removed tabs
                 for (const mr of mutationList) {
+                    let openedTab = ''
                     if (mr.type === 'childList') {
                         for (const node of mr.removedNodes) {
-                            if (node.getAttribute('role') === 'tab') {
+                            if (
+                                node.nodeType != Node.TEXT_NODE &&
+                                node.getAttribute('role') === 'tab'
+                            ) {
                                 window.tabs.remove(node.getAttribute('id'))
                             }
                         }
-
-                        for (const node of mr.addedNodes) {
-                            if (node.getAttribute('role') === 'tab') {
-                                window.tabs.setCurrent(node)
-                            }
+                    } else if (mr.type === 'attributes') {
+                        const targetNode = mr.target
+                        //some bug here makes it work forever. probably wrong mr.target.getAttribute('aria-selected'). also check changed attribute
+                        if (
+                            mr.attributeName === 'aria-selected' &&
+                            targetNode.getAttribute('aria-selected') ===
+                                'true' &&
+                            mr.oldValue === 'false' &&
+                            targetNode.nodeType != Node.TEXT_NODE &&
+                            targetNode.getAttribute('role') === 'tab' &&
+                            targetNode.id !== openedTab
+                        ) {
+                            window.tabs.setCurrent(targetNode)
+                            openedTab = targetNode.id
                         }
                     }
                 }
@@ -753,7 +808,6 @@ if (typeof Tabs !== 'function') {
             logFileA.addEventListener('click', (event) => {
                 if (event.detail === 1) {
                     timer = setTimeout(() => {
-                        console.log('click')
                         logFileAClick.click()
                     }, 200)
                 }
@@ -761,7 +815,6 @@ if (typeof Tabs !== 'function') {
 
             logFileA.addEventListener('dblclick', () => {
                 clearTimeout(timer)
-                console.log('dblclick')
                 logFileADBLClick.click()
             })
 
