@@ -22,7 +22,7 @@
         }
     },
     "permissions": ["storage", "tabs", "scripting", "activeTab"],
-    "host_permissions": ["<all_urls>"],
+    "host_permissions": ["https://*/*", "http://*/*"],
     "web_accessible_resources": [
         {
             "resources": [
@@ -32,15 +32,15 @@
                 "assets/war/dev-portal.js",
                 "assets/img/copy-hover-16.png",
                 "assets/img/copy-hover.svg",
+                "assets/img/log.png",
+                "assets/img/copy-cursor.png",
+                "assets/img/tag-mustard.png",
+                "assets/img/tag-pega.png",
+                "assets/img/tag.png",
+                "assets/img/id-card.png",
                 "build/styles.css"
             ],
-            "matches": [
-                "https://srvcrp-digops-dt1.pegacloud.net/*",
-                "https://srvcrp-digops-stg1.pegacloud.net/*",
-                "https://srvcrp-digops-dt2.pegacloud.net/*",
-                "https://srvcrp-digops-prod1.pegacloud.net/*",
-                "https://srvcrp-digops-preprod1.pegacloud.net/*"
-            ]
+            "matches": ["https://*/*", "http://*/*"]
         }
     ]
 }

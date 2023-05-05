@@ -1,6 +1,11 @@
 console.log('hi there!')
 
 /*
+TODO: посмотреть existingTimers и как чистить интервалы в добавлении sig 
+и с какой частотой запускается добавление sig
+*/
+
+/*
 _tabIframeLoadedCallback - парсит пега табу
 getCurrentOpenTabElement - достает нод элемент открытой табы
 
@@ -21,13 +26,22 @@ s.onload = function () {
 
     тип объявлен в глобальном объекте window, потому что при рефреше пега табы, 
     скрипт пытается отработать заново. будто это какой-то хитрый рефреш стейта
+
+    clearInterval(tabId) - очищает интервал и удаляет id интервала из объекта _tabsInfo
+    intervalId из _tabsInfo используется в setCurrentTab, чтобы не запускать механизм повторно
 */
 
 if (typeof Tabs !== 'function') {
     window.Tabs = class {
         constructor() {
+            //пока реализовано только для dev студии
+            if (!document.querySelector('div.dev-studio')) {
+                console.log('!!!!!!!!! не дев студия')
+                return
+            }
+
             this._tabsInfo = {}
-            this.TAB_CONTENT_SCAN_TIMOUT = 200
+            this.TAB_CONTENT_SCAN_TIMOUT = 500
             this.TAB_CONTENT_LOADING_TIMEOUT = 120000
             this.tabsRef = document.querySelector(
                 '#workarea div.tStrCntr ul[role="tablist"]'
@@ -102,6 +116,30 @@ if (typeof Tabs !== 'function') {
             )
         }
 
+        clearInterval(tabId) {
+            console.log('try to clear interval for tab ', tabId)
+            if (!this._tabsInfo[tabId]) return
+
+            clearInterval(this._tabsInfo[tabId].intervalId)
+            console.log(
+                'interval ' + this._tabsInfo[tabId].intervalId,
+                'cleared for tab ' + tabId
+            )
+            this._tabsInfo[tabId].intervalId = undefined
+        }
+
+        //копирует в клипборд, добавляет класс
+        makeElementTextCopiable(element, textToCopy) {
+            if (element) {
+                element.classList.add('pega-extension__copy-value')
+
+                //функция копирования класса рула в клипборд
+                element.addEventListener('click', () => {
+                    navigator.clipboard.writeText(textToCopy)
+                })
+            }
+        }
+
         //инициализирует список таб для переключения (список visited)
         //TODO: перенести в эту функцию часть из конструктора
         initVisitedTabs() {
@@ -147,7 +185,7 @@ if (typeof Tabs !== 'function') {
                 visitedString =
                     visitedString?.trim() === '' ? null : visitedString
 
-                const visitedArr = JSON.parse(visitedString)
+                const visitedArr = JSON.parse(visitedString) || []
 
                 const resultArr = []
                 if (visitedArr.length > 0) {
@@ -198,6 +236,7 @@ if (typeof Tabs !== 'function') {
         }
 
         setCurrent(tab) {
+            console.log('setCurrent')
             tab?.setAttribute('draggable', true) //делает табу draggable
 
             //actualize list of visited tabs on each attempt of setting current
@@ -218,42 +257,29 @@ if (typeof Tabs !== 'function') {
                 this.visited.currentTab = tab.id //TODO
             }
 
-            //если в пока нет информации о табе
-            if (!this._tabsInfo[tab.id]) {
-                //добавлем настройку таймаута
-                this._tabsInfo[tab.id] = {
-                    loadingTimeout: this.TAB_CONTENT_LOADING_TIMEOUT,
-                }
+            console.log(
+                'will setCurrent check iframe?',
+                !this._tabsInfo[tab.id]
+            )
 
-                //раз в секунду будет пытаться достать данные из табы
-                const intervalId = setInterval(
-                    this._iframeLoaded(tab.id),
-                    this.TAB_CONTENT_SCAN_TIMOUT
-                )
-                this._tabsInfo[tab.id].intervalId = intervalId //таймаут на загрузку. после этого попыток загрузиться больше не будет
-            } else {
-                //иногда ивент для лисенер для keydown слетает и переключение таб не работает
-                const iframe = document.querySelector(
-                    `div.tabContent .iframe-wrapper[aria-labelledby="${tab.id}"] iframe`
-                ) //TODO: этот кусок повторяется, просто поищи. прям 3 строки. их нужно вынести в отдельную функцию
+            //проверяем, есть ли найстройки для табы
+            if (this._tabsInfo[tab.id]?.intervalId) return
 
-                if (iframe) {
-                    const iframeDoc =
-                        iframe.contentDocument || iframe.contentWindow.document
+            //иначе удаляем старый таймер и выставляем новый, чтобы получить актуальные данные
+            //this.clearInterval(tab.id)
 
-                    iframeDoc.body.addEventListener('keydown', this.onTabSwitch)
-                }
+            //добавлем настройку таймаута
+            this._tabsInfo[tab.id] = {
+                loadingTimeout: this.TAB_CONTENT_LOADING_TIMEOUT,
             }
 
-            /*
-            if (
-                this.visited.length() === 0 ||
-                this.visited.getAll()[this.visited.length() - 1] !== tab.id
-            ) {
-            } else {
-                console.log('skipped a lot')
-            }
-            */
+            //раз в TAB_CONTENT_SCAN_TIMOUT будет пытаться достать данные из табы
+            const intervalId = setInterval(
+                this._iframeLoaded(tab.id),
+                this.TAB_CONTENT_SCAN_TIMOUT
+            )
+
+            this._tabsInfo[tab.id].intervalId = intervalId //таймаут на загрузку. после этого попыток загрузиться больше не будет
         }
 
         //достает всю инфу из табы пеги == парсит табу
@@ -273,7 +299,8 @@ if (typeof Tabs !== 'function') {
                     return
                 } else {
                     //если наконец нашли шапку табы, прекращаем опрашивать табу
-                    clearInterval(this._tabsInfo[tabId].intervalId)
+                    this.clearInterval(tabId)
+                    //clearInterval(this._tabsInfo[tabId].intervalId)
                 }
 
                 //все ниже относится пока только к обычным рулам типа активити
@@ -297,7 +324,7 @@ if (typeof Tabs !== 'function') {
                     'table[pl_prop*="D_pzBranchContent"]>tbody>tr.oddRow, tr.evenRow'
                 ).length
 
-                const ruleLabel = (
+                const ruleLabelElement =
                     innerHeader.querySelector(
                         'span .workarea_header_highlight'
                     ) ||
@@ -305,7 +332,8 @@ if (typeof Tabs !== 'function') {
                     innerHeader.querySelector(
                         'div.item-2 span.workarea_header_titles'
                     )
-                )?.innerText.trim()
+
+                const ruleLabel = ruleLabelElement?.innerText.trim()
 
                 const ruleAvailability = innerHeader.querySelector(
                     'div [data-node-id="pzRuleFormStatus"] div[data-ui-meta*=".pyRuleAvailable"] span.workarea_header_titles'
@@ -330,17 +358,7 @@ if (typeof Tabs !== 'function') {
                 cssLink.type = 'text/css'
                 iframeDoc.head.appendChild(cssLink)
 
-                classLabelElement?.classList.add('pega-extension__copy-value')
-                if (classLabelElement) {
-                    classLabelElement.classList.add(
-                        'pega-extension__copy-value'
-                    )
-
-                    //функция копирования класса рула в клипборд
-                    classLabelElement.addEventListener('click', () => {
-                        navigator.clipboard.writeText(className)
-                    })
-                }
+                this.makeElementTextCopiable(classLabelElement, className)
 
                 //Purpose для decision table
                 const ruleNameElement =
@@ -368,6 +386,13 @@ if (typeof Tabs !== 'function') {
                     ruleName = ruleName.trim()
                 }
 
+                //TODO: эту часть надо вынести в отдельную функцию вида (labelElement, textToCopy) => {}
+                const ruleNameLabelElement = ruleNameElement
+                    ?.closest('div.content-item')
+                    .querySelector('label.field-caption')
+
+                this.makeElementTextCopiable(ruleNameLabelElement, ruleName)
+
                 let rulesetData =
                     innerHeader
                         .querySelector(
@@ -394,13 +419,48 @@ if (typeof Tabs !== 'function') {
 
                 this._tabsInfo[tabId].info = tabInfo
 
+                //learInterval(this._tabsInfo[tabId].intervalId) //TODO: too much invokation
+
                 //добавление лейбла SIG
+
+                //add tag icon
+                const ruleLabelAndType =
+                    ruleLabelElement.closest('div.content-item')?.parentElement
+
+                if (
+                    ruleLabelAndType &&
+                    !ruleLabelAndType.querySelector(
+                        '#pega-extension__rule-info-sig'
+                    )
+                ) {
+                    const wrapperDiv = document.createElement('div')
+                    wrapperDiv.classList.add('content-item')
+
+                    const icon = document.createElement('img')
+                    icon.setAttribute('id', 'pega-extension__rule-info-sig')
+                    icon.style.height = '1.23em'
+                    icon.style.marginBottom = '-4px'
+                    icon.src = chrome.runtime.getURL('./assets/img/id-card.png')
+
+                    wrapperDiv.appendChild(icon)
+
+                    const ruleSignature = `${tabInfo.ruleType} ${
+                        tabInfo.className ? tabInfo.className + '.' : ''
+                    }${tabInfo.ruleName}`
+                    this.makeElementTextCopiable(icon, ruleSignature)
+
+                    ruleLabelAndType.appendChild(wrapperDiv)
+                }
+                /*
+                TODO: Product, DSS
+                */
+                /*
                 if (
                     !innerHeader.querySelector('#pega-extension__rule-info-sig')
                 ) {
+                    console.log('will try to add SIG')
                     const sigDiv = document.createElement('div')
                     const sigLabel = document.createElement('label')
-                    sigLabel.classList.add('pega-extension__copy-value')
 
                     sigLabel.classList.add('rule_keys_dataLabelForWrite')
                     sigLabel.textContent = 'SIG'
@@ -411,15 +471,13 @@ if (typeof Tabs !== 'function') {
                     sigDiv.classList.add('pega-extension__rule-info-lable')
                     sigDiv.setAttribute('id', 'pega-extension__rule-info-sig')
 
-                    sigLabel.addEventListener('click', () => {
-                        const signature = [
+                     const signature = [
                             { type: 'attr', attr: 'ruleType' },
                             { type: 'text', value: ' ' },
-                        ]
-                        navigator.clipboard.writeText(
-                            `${tabInfo.ruleType} ${tabInfo.className}.${tabInfo.ruleName}`
-                        )
-                    })
+                        ] 
+                    
+                    const ruleSignature = `${tabInfo.ruleType} ${tabInfo.className}.${tabInfo.ruleName}`
+                    this.makeElementTextCopiable(sigLabel, ruleSignature)
 
                     classElements
                         ?.closest('div.rule-details')
@@ -428,6 +486,7 @@ if (typeof Tabs !== 'function') {
                             classElements.closest('div.rule-details').firstChild
                         )
                 }
+                */
                 //добавление лейбла SIG
             } else if (tabContentElement) {
                 //for home page - она не в iframe
@@ -456,7 +515,8 @@ if (typeof Tabs !== 'function') {
                     return
                 }
 
-                clearInterval(this._tabsInfo[tabId].intervalId) //TODO: this should be refactored. вызывается из 2 веток
+                this.clearInterval(tabId)
+                //clearInterval(this._tabsInfo[tabId].intervalId) //TODO: this should be refactored. вызывается из 2 веток
                 /* 
                 {
                     sever: {
@@ -500,30 +560,58 @@ if (typeof Tabs !== 'function') {
         _iframeLoaded(tabId) {
             return function () {
                 //уменьшаем количество попыток
+                console.log(
+                    '_iframeLoaded start for ' + tabId,
+                    !this._tabsInfo[tabId] ||
+                        this._tabsInfo[tabId].loadingTimeout === undefined
+                )
+                console.log(tabId, this._tabsInfo[tabId])
+
                 if (
                     //после рефреша табы все объекты обнуляются, а некоторые таймеры оказываются в промежуточном состоянии
                     !this._tabsInfo[tabId] ||
                     this._tabsInfo[tabId].loadingTimeout === undefined
                 ) {
+                    console.log(
+                        'try to clear orphat intervals after tab',
+                        tabId
+                    )
                     let existingTimers = []
                     for (const ti in this._tabsInfo) {
                         const timerId = this._tabsInfo[ti].intervalId
                         if (!isNaN(timerId)) {
-                            existingTimers.push(
-                                Number(this._tabsInfo[ti].intervalId)
-                            )
+                            existingTimers.push({
+                                timerId: Number(this._tabsInfo[ti].intervalId),
+                                tabId: ti,
+                            })
                         }
                     }
 
+                    //get max timer id for existing timers
                     const maxTimerId = existingTimers.sort(function (a, b) {
-                        return a - b
-                    })[existingTimers.length - 1]
+                        return a.timerId - b.timerId
+                    })[existingTimers.length - 1].timerId
 
                     for (let i = 1; i < maxTimerId * 10; i++) {
                         //проверка, что id нет в списке с табами
+                        const etIndex = existingTimers.findIndex(
+                            (et) => et.timerId === i
+                        )
+
+                        if (etIndex !== -1) {
+                            //remove existing
+                            this.clearInterval(
+                                existingTimers[etIndex].intervalId
+                            )
+                        } else {
+                            //remove not captured
+                            clearInterval(i)
+                        }
+                        /*
                         if (!existingTimers.includes(i)) {
                             window.clearInterval(i)
                         }
+                        */
                     }
 
                     return //cancel all orphan timers and exit
@@ -534,11 +622,13 @@ if (typeof Tabs !== 'function') {
 
                 //очищаем интервал
                 if (this._tabsInfo[tabId].loadingTimeout < 0) {
-                    clearInterval(this._tabsInfo[tabId].intervalId)
+                    //clearInterval(this._tabsInfo[tabId].intervalId)
+                    this.clearInterval(tabId)
                 }
 
                 //тут пытаемся вытащить iframe, потому что для всех, кроме home информация лежит в iframe
                 if (tabId) {
+                    console.log('_iframeLoaded')
                     const iframe = document.querySelector(
                         `div.tabContent .iframe-wrapper[aria-labelledby="${tabId}"] iframe`
                     ) //TODO есть такой же кусок, нужно бы поместить в отдельную функцию
@@ -754,11 +844,16 @@ if (typeof Tabs !== 'function') {
             logFileWrapper.appendChild(logFileSpan)
 
             const envSettingLogsIcon = 'ENV_LOGS__EXT' //'ENV_LOGS__INT_PEGA', ENV_LOGS__EXT, ENV_LOGS__INT_COMMON
+            const envSettingLogsExtURL =
+                'https://srvcrp-digops-stg1-logs.pegacloud.net/kibana'
             const logSource = {
                 ENV_LOGS__EXT: {
+                    href: envSettingLogsExtURL,
+                    /*
                     'data-click':
                         '[["openUrlInWindow", ["#~pxRequestor.pxExternalLogURL~#", "Log Files", "height=700,width=1200,location=1,menubar=1,toolbar=1,status=1,resizable=1,location=1,scrollbars=1", "false",":event","true", "false"]]]',
                     name: 'pzStudioFooter_pyDisplayHarness_4',
+                    */
                 },
                 ENV_LOGS__INT_COMMON: {
                     'data-click':
@@ -788,10 +883,17 @@ if (typeof Tabs !== 'function') {
                     )
                 })
             } else {
+                /*
                 logFileAClick.dataset.click = logSourceSettings['data-click']
                 logFileAClick.setAttribute('name', logSourceSettings['name'])
                 logFileAClick.setAttribute('href', '#')
                 logFileAClick.setAttribute('onclick', 'pd(event);')
+                logFileAClick.addEventListener('click', () => {
+                    console.log('log file a click clicked')
+                })
+                */
+                logFileAClick.href = logSourceSettings.href
+                logFileAClick.target = '_blank'
             }
 
             //по двойному клику открывать общее окно логов
