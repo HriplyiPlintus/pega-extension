@@ -35,7 +35,6 @@ function enrichSqlWithInserts(rows) {
         //get inserts
         if (eventType === 'SQL Inserts') {
             sqlInserts = eventTypeValue
-            console.log(eventTypeValueElement)
             const eventTypeXMPElement =
                 eventTypeValueElement.querySelector('xmp')
             if (eventTypeXMPElement) {

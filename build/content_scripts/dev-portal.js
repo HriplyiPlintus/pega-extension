@@ -71,8 +71,6 @@ if (typeof Tabs !== 'function') {
                 this.tabsListMiddleClickHandler
             )
 
-            console.log('tabsref', this.tabsRef)
-
             //делаю все открытые табы сразу draggable
             for (const t of this.tabsRef.querySelectorAll('li[role="tab"]')) {
                 t?.setAttribute('draggable', true)
@@ -119,14 +117,10 @@ if (typeof Tabs !== 'function') {
         }
 
         clearInterval(tabId) {
-            console.log('try to clear interval for tab ', tabId)
             if (!this._tabsInfo[tabId]) return
 
             clearInterval(this._tabsInfo[tabId].intervalId)
-            console.log(
-                'interval ' + this._tabsInfo[tabId].intervalId,
-                'cleared for tab ' + tabId
-            )
+
             this._tabsInfo[tabId].intervalId = undefined
         }
 
@@ -251,8 +245,6 @@ if (typeof Tabs !== 'function') {
         }
 
         setCurrent(tab) {
-            console.log('setCurrent')
-
             tab?.setAttribute('draggable', true) //делает табу draggable
 
             //actualize list of visited tabs on each attempt of setting current
@@ -461,48 +453,89 @@ if (typeof Tabs !== 'function') {
 
                 //learInterval(this._tabsInfo[tabId].intervalId) //TODO: too much invokation
 
-                //добавление лейбла SIG
-
-                //add tag icon
+                //подготовка к добавлению кастомных иконок
                 const ruleLabelAndType =
                     ruleLabelElement?.closest('div.content-item')?.parentElement
 
-                if (
-                    ruleLabelAndType &&
-                    !ruleLabelAndType.querySelector(
-                        '#pega-extension__rule-info-sig'
-                    )
-                ) {
-                    const wrapperDiv = document.createElement('div')
-                    wrapperDiv.classList.add('content-item')
+                if (ruleLabelAndType) {
+                    //функция для добавления иконки с копируемым текстом
+                    const addCustomAcitonIcon = (
+                        infoValue,
+                        tooltipText,
+                        elementId,
+                        iconPath
+                    ) => {
+                        const wrapperDiv = document.createElement('div')
+                        wrapperDiv.classList.add('content-item')
 
-                    const icon = document.createElement('img')
-                    icon.setAttribute('id', 'pega-extension__rule-info-sig')
-                    icon.classList.add('pega-extension__copy-value')
-                    icon.style.height = '1.23em' //sometimes there is a lag between css inject and html inject
-                    icon.src = chrome.runtime.getURL(
-                        './assets/img/tag-white.png'
-                    )
+                        const icon = document.createElement('img')
+                        icon.setAttribute('id', elementId)
+                        icon.classList.add('pega-extension__copy-value')
+                        icon.style.height = '1.23em' //sometimes there is a lag between css inject and html inject
+                        icon.src = chrome.runtime.getURL(iconPath)
 
-                    wrapperDiv.appendChild(icon)
+                        wrapperDiv.appendChild(icon)
 
-                    let ruleSignature = ''
-                    if (tabInfo.ruleType === 'Branch') {
-                        ruleSignature = tabInfo.ruleLabel
-                    } else {
-                        ruleSignature = `${tabInfo.ruleType} ${
-                            tabInfo.className ? tabInfo.className + '.' : ''
-                        }${tabInfo.ruleName}`
+                        this.makeElementTextCopiable(
+                            icon.parentElement,
+                            infoValue,
+                            tooltipText
+                        )
+
+                        ruleLabelAndType.appendChild(wrapperDiv)
+                    }
+                    //добавление pzInsKey
+                    const elementWithKey =
+                        iframeDoc.querySelector('textarea#PRXML')
+
+                    //if no such element in dom and pzinskey value available
+                    if (
+                        !ruleLabelAndType.querySelector(
+                            '#pega-extension__rule-info-pzinskey'
+                        ) &&
+                        elementWithKey
+                    ) {
+                        const tempElement = document.createElement('div')
+                        tempElement.innerHTML = elementWithKey.innerText.trim()
+
+                        const pzInsKey = tempElement
+                            .querySelector('pzDocumentKey')
+                            ?.innerText.trim()
+
+                        if (pzInsKey) {
+                            addCustomAcitonIcon(
+                                pzInsKey,
+                                'Copy rule pzInsKey',
+                                'pega-extension__rule-info-pzinskey',
+                                './assets/img/key.png'
+                            )
+                        }
                     }
 
-                    this.makeElementTextCopiable(
-                        icon.parentElement,
-                        ruleSignature,
-                        'Copy rule signature'
-                    )
+                    //add tag icon
+                    if (
+                        !ruleLabelAndType.querySelector(
+                            '#pega-extension__rule-info-sig'
+                        )
+                    ) {
+                        let ruleSignature = ''
+                        if (tabInfo.ruleType === 'Branch') {
+                            ruleSignature = tabInfo.ruleLabel
+                        } else {
+                            ruleSignature = `${tabInfo.ruleType} ${
+                                tabInfo.className ? tabInfo.className + '.' : ''
+                            }${tabInfo.ruleName}`
+                        }
 
-                    ruleLabelAndType.appendChild(wrapperDiv)
+                        addCustomAcitonIcon(
+                            ruleSignature,
+                            'Copy rule signature',
+                            'pega-extension__rule-info-sig',
+                            './assets/img/tag-white.png'
+                        )
+                    }
                 }
+
                 //добавление лейбла SIG
             } else if (tabContentElement) {
                 //for home page - она не в iframe
@@ -576,22 +609,11 @@ if (typeof Tabs !== 'function') {
         _iframeLoaded(tabId) {
             return function () {
                 //уменьшаем количество попыток
-                console.log(
-                    '_iframeLoaded start for ' + tabId,
-                    !this._tabsInfo[tabId] ||
-                        this._tabsInfo[tabId].loadingTimeout === undefined
-                )
-                console.log(tabId, this._tabsInfo[tabId])
-
                 if (
                     //после рефреша табы все объекты обнуляются, а некоторые таймеры оказываются в промежуточном состоянии
                     !this._tabsInfo[tabId] ||
                     this._tabsInfo[tabId].loadingTimeout === undefined
                 ) {
-                    console.log(
-                        'try to clear orphat intervals after tab',
-                        tabId
-                    )
                     let existingTimers = []
                     for (const ti in this._tabsInfo) {
                         const timerId = this._tabsInfo[ti].intervalId
@@ -644,7 +666,6 @@ if (typeof Tabs !== 'function') {
 
                 //тут пытаемся вытащить iframe, потому что для всех, кроме home информация лежит в iframe
                 if (tabId) {
-                    console.log('_iframeLoaded')
                     const iframe = document.querySelector(
                         `div.tabContent .iframe-wrapper[aria-labelledby="${tabId}"] iframe`
                     ) //TODO есть такой же кусок, нужно бы поместить в отдельную функцию
@@ -735,7 +756,6 @@ if (typeof Tabs !== 'function') {
 
         //закрытие табы по клику по колесику мыши
         tabsListMiddleClickHandler(e) {
-            console.log('3 buttons click')
             let selectedTab = e.target.closest('li[role="tab"]')
             if (selectedTab && e.button === 1) {
                 selectedTab.querySelector('.iconCloseSmall')?.click()
@@ -754,7 +774,7 @@ if (typeof Tabs !== 'function') {
             const selectedTabInfo = this._tabsInfo[tabId]
         }
 
-        switchTabs() {}
+        //switchTabs() {}
 
         //template engine
         templateEngine(e) {

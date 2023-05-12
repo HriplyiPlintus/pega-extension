@@ -33,7 +33,7 @@
     color: #fff;
     text-align: center;
     padding: 5px 8px;
-    transform: translate(-40%, 80%);
+    transform: translate(-40%, 90%);
     max-width: 120px;
     font-size: 12px;
     z-index: 1000;
@@ -85,14 +85,17 @@
     animation: smooth-appear 0.2s ease forwards;
 }
 
-#pega-extension__rule-info-sig {
+#pega-extension__rule-info-sig,
+#pega-extension__rule-info-pzinskey {
     visibility: hidden;
     height: 1.23em;
     opacity: 0.5;
     margin-bottom: -4px;
+    margin-left: 5px;
 }
 
-#pega-extension__rule-info-sig:hover {
+#pega-extension__rule-info-sig:hover,
+#pega-extension__rule-info-pzinskey:hover {
     opacity: 1;
 }
 
@@ -102,7 +105,9 @@
     }
 }
 .layout-noheader-ruleform_header:hover #pega-extension__rule-info-sig,
-.layout-noheader-workarea_header:hover #pega-extension__rule-info-sig {
+.layout-noheader-workarea_header:hover #pega-extension__rule-info-sig,
+.layout-noheader-ruleform_header:hover #pega-extension__rule-info-pzinskey,
+.layout-noheader-workarea_header:hover #pega-extension__rule-info-pzinskey {
     animation: fadeIn 0s 200ms forwards;
     visibility: hidden;
 }
