@@ -262,19 +262,11 @@ if (typeof Tabs !== 'function') {
                 this.visited.length() === 0
             ) {
                 this.visited.push(tab.id) //добавляет в стек посещенных таб
-                this.visited.currentTab = tab.id //TODO
+                this.visited.currentTab = tab.id
             }
-
-            console.log(
-                'will setCurrent check iframe?',
-                !this._tabsInfo[tab.id]
-            )
 
             //проверяем, есть ли найстройки для табы
             if (this._tabsInfo[tab.id]?.intervalId) return
-
-            //иначе удаляем старый таймер и выставляем новый, чтобы получить актуальные данные
-            //this.clearInterval(tab.id)
 
             //добавлем настройку таймаута
             this._tabsInfo[tab.id] = {
@@ -308,7 +300,6 @@ if (typeof Tabs !== 'function') {
                 } else {
                     //если наконец нашли шапку табы, прекращаем опрашивать табу
                     this.clearInterval(tabId)
-                    //clearInterval(this._tabsInfo[tabId].intervalId)
                 }
 
                 //все ниже относится пока только к обычным рулам типа активити
@@ -450,8 +441,6 @@ if (typeof Tabs !== 'function') {
                 }
 
                 this._tabsInfo[tabId].info = tabInfo
-
-                //learInterval(this._tabsInfo[tabId].intervalId) //TODO: too much invokation
 
                 //подготовка к добавлению кастомных иконок
                 const ruleLabelAndType =
