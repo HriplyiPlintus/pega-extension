@@ -131,10 +131,9 @@
     position: absolute;
     box-sizing: border-box;
     top: 0;
-    gap: 0.5em;
     justify-content: space-between;
-    left: calc(100% - 2 * 2em - 0.5em);
-    width: calc(2 * 2em + 0.5em);
+    left: calc(100% - 3em);
+    width: 2em;
     margin-top: 0.5em;
 }
 
