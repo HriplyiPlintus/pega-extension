@@ -87,37 +87,89 @@ function addSqlWithInserts() {
                     'src',
                     chrome.runtime.getURL('./assets/img/copy.png')
                 )
-                copyIcon.setAttribute('sql-copied', false)
-                copyIcon.style.top = '5px'
-                copyIcon.style.right = '5px'
-                copyIcon.style.position = 'absolute'
-                copyIcon.style.height = '2em'
-                copyIcon.style.display = 'none'
-                copyIcon.classList.add('sql-with-inserts-copy')
+
+                copyIcon.classList.add(
+                    'pega-extension__tracer-event-sql-inserts-icon-copy'
+                )
 
                 const copiedIcon = document.createElement('img')
                 copiedIcon.setAttribute(
                     'src',
                     chrome.runtime.getURL('./assets/img/copy-done.png')
                 )
-                copiedIcon.classList.add('sql-with-inserts-copied')
-                copiedIcon.style.top = '5px'
-                copiedIcon.style.right = '5px'
-                copiedIcon.style.position = 'absolute'
-                copiedIcon.style.height = '2em'
-                copiedIcon.style.display = 'none'
+
+                copiedIcon.classList.add(
+                    'pega-extension__tracer-event-sql-inserts-icon-copy'
+                )
+                copiedIcon.classList.add('pega-extension__display-none') //not visible by default
+
+                const copyIconsWrapper = document.createElement('div') //for tooltips support
+                copyIconsWrapper.appendChild(copyIcon)
+                copyIconsWrapper.appendChild(copiedIcon)
+                copyIconsWrapper.dataset.tooltip = 'Copy formatted SQL'
+                copyIconsWrapper.classList.add('pega-extension__copy-value')
+
+                const actionIconsWrapper = document.createElement('div')
+                actionIconsWrapper.classList.add(
+                    'pega-extension__tracer-event-sql-icons-wrapper'
+                )
+                actionIconsWrapper.appendChild(copyIconsWrapper)
 
                 const enrichedSqlRowName = document.createElement('td')
                 enrichedSqlRowName.classList.add('eventElementDataBold')
                 enrichedSqlRowName.setAttribute('VALIGN', 'TOP')
                 enrichedSqlRowName.style.position = 'relative'
                 enrichedSqlRowName.innerHTML = `&nbsp;SQL ✨`
-                enrichedSqlRowName.appendChild(copyIcon)
-                enrichedSqlRowName.appendChild(copiedIcon)
 
                 //<TD CLASS='eventElementData'>"
                 const enrichedSqlRowData = document.createElement('td')
                 enrichedSqlRowData.classList.add('eventElementData')
+
+                copyIconsWrapper.addEventListener('click', (e) => {
+                    if (
+                        e.target.classList.contains(
+                            'pega-extension__tracer-event-sql-inserts-icon-copy'
+                        )
+                    ) {
+                        try {
+                            navigator.clipboard.writeText(
+                                sqlFormatterGlobalObj.sqlFormatter.format(
+                                    enrichedSqlRowData.dataset.query
+                                )
+                            )
+                        } catch (error) {
+                            navigator.clipboard.writeText(
+                                enrichedSqlRowData.dataset.query
+                            )
+                        }
+
+                        const toggleIconCopyVisibility = () => {
+                            for (const ci of e.target.parentElement.querySelectorAll(
+                                '.pega-extension__tracer-event-sql-inserts-icon-copy'
+                            )) {
+                                ci.classList.toggle(
+                                    'pega-extension__display-none'
+                                )
+                            }
+                        }
+                        toggleIconCopyVisibility()
+
+                        const copyDonePopup = document.createElement('div')
+                        copyDonePopup.classList.add(
+                            'pega-extension__copied_to_clipboard'
+                        )
+                        copyDonePopup.innerText = 'Copied to clipboard'
+
+                        document
+                            .querySelector('body')
+                            .appendChild(copyDonePopup)
+
+                        setTimeout(() => {
+                            toggleIconCopyVisibility()
+                            copyDonePopup.remove()
+                        }, 1500)
+                    }
+                })
                 /* 
                 TODO: add white-space: pre-wrap для SQL inserts и для самой квери. 
                 саму кверю нужно будет брать после преобразования
@@ -128,8 +180,13 @@ function addSqlWithInserts() {
                     .replaceAll(' ', '&nbsp;')
 
                 enrichedSqlRowData.innerHTML = modifiedQuery //sqlFormatterGlobalObj.sqlFormatter.format(query)
+                enrichedSqlRowData.appendChild(actionIconsWrapper) //added action icons
                 enrichedSqlRowData.dataset.query = query
-                enrichedSqlRowData.style.whiteSpace = 'pre-wrap'
+
+                enrichedSqlRowData.classList.add(
+                    'pega-extension__tracer-event-sql-formatted'
+                )
+                enrichedSqlRowData.style.height = '5em'
 
                 //row itself
                 const enrichedSqlRow = document.createElement('tr')
@@ -143,44 +200,6 @@ function addSqlWithInserts() {
                     enrichedSqlRow,
                     insertsRow.nextSibling
                 )
-
-                //event handlers
-                enrichedSqlRowName.addEventListener('click', () => {
-                    try {
-                        navigator.clipboard.writeText(
-                            sqlFormatterGlobalObj.sqlFormatter.format(
-                                enrichedSqlRowData.dataset.query
-                            )
-                        )
-                    } catch (error) {
-                        navigator.clipboard.writeText(
-                            enrichedSqlRowData.dataset.query
-                        )
-                    }
-
-                    copyIcon.setAttribute('sql-copied', 'true')
-                    copyIcon.style.display = 'none'
-
-                    copiedIcon.style.display = ''
-
-                    setTimeout(() => {
-                        copiedIcon.style.display = 'none'
-                        copyIcon.setAttribute('sql-copied', 'false')
-                    }, 800)
-                })
-
-                enrichedSqlRowName.addEventListener('mouseover', () => {
-                    enrichedSqlRowName.style.cursor = 'pointer'
-
-                    if (copyIcon.getAttribute('sql-copied') == 'false') {
-                        copyIcon.style.display = ''
-                    }
-                })
-
-                enrichedSqlRowName.addEventListener('mouseout', () => {
-                    enrichedSqlRowName.style.cursor = 'auto'
-                    copyIcon.style.display = 'none'
-                })
             }
 
             break

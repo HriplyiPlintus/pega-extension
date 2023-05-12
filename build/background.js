@@ -31,7 +31,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
             './build/lib/sqlformatter.min.js',
             './build/content_scripts/tracer-sql-with-inserts.js',
         ])
-
+        injectCSS(tabId)
         processedTabs.push(tabId)
     } else if (
         tab.title.includes('Tracer - PegaRULES') &&

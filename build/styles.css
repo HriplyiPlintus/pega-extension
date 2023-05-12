@@ -107,7 +107,37 @@
 .layout-noheader-ruleform_header:hover #pega-extension__rule-info-sig,
 .layout-noheader-workarea_header:hover #pega-extension__rule-info-sig,
 .layout-noheader-ruleform_header:hover #pega-extension__rule-info-pzinskey,
-.layout-noheader-workarea_header:hover #pega-extension__rule-info-pzinskey {
+.layout-noheader-workarea_header:hover #pega-extension__rule-info-pzinskey,
+.eventElementData:hover .pega-extension__tracer-event-sql-inserts-icon-copy {
     animation: fadeIn 0s 200ms forwards;
     visibility: hidden;
+}
+
+.pega-extension__tracer-event-sql-inserts-icon-copy {
+    position: absolute;
+    height: 2em;
+    cursor: pointer;
+    visibility: hidden;
+}
+
+.pega-extension__tracer-event-sql-formatted {
+    white-space: pre-wrap;
+    position: relative;
+}
+
+.pega-extension__tracer-event-sql-icons-wrapper {
+    display: flex;
+    flex-direction: row;
+    position: absolute;
+    box-sizing: border-box;
+    top: 0;
+    gap: 0.5em;
+    justify-content: space-between;
+    left: calc(100% - 2 * 2em - 0.5em);
+    width: calc(2 * 2em + 0.5em);
+    margin-top: 0.5em;
+}
+
+.pega-extension__display-none {
+    display: none;
 }
