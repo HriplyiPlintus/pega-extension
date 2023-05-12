@@ -27,7 +27,27 @@
     width: 500px;
 }
 
+.popup-tab-title-wrapper {
+    display: flex;
+    flex-direction: row;
+    gap: 1em;
+}
+
+.popup-tab-title.selected {
+    text-decoration: underline;
+    text-underline-offset: 0.4em;
+    text-decoration-color: var(--font-color-regular);
+}
+
 .popup-tab-title {
+    font-size: 20px;
+    font-weight: 500;
+    margin-block-start: 0.67em;
+    margin-block-end: 0.67em;
+    margin-inline-start: 0px;
+    margin-inline-end: 0px;
+    display: block;
+    cursor: pointer;
 }
 
 .settings {

@@ -13,6 +13,31 @@ class Popup {
         this.renderSettingsScreen()
     }
 
+    state = {
+        setState: (attribute, value) => {
+            const currentState = JSON.parse(
+                localStorage.getItem('popupState') || 'null'
+            )
+
+            currentState[attribute] = value
+
+            currentState.localStorage.setItem('popupState', currentState)
+        },
+        getState: () => {
+            return JSON.parse(localStorage.getItem('popupState') || '')
+        },
+
+        getAttribute: (attribute) => {
+            const currentState = JSON.parse(
+                localStorage.getItem('popupState') || 'null'
+            )
+
+            if (!currentState) return null
+
+            return currentState[attribute]
+        },
+    }
+
     //returns page markup
     buildPage(pageName, paramsObj) {
         switch (pageName) {
@@ -149,6 +174,29 @@ class Popup {
                     })
                 )
                 break
+            case 'popup-tab-header':
+                //установка табы. сравнивается с title только для первичной отрисовки
+                const currentTab =
+                    this.state.getAttribute('navBarTab') || 'Envs'
+
+                const title = paramsObj?.title
+
+                const classArr = ['popup-tab-title']
+                if (title === currentTab) {
+                    classArr.push('selected')
+                }
+
+                if (currentTab === title) {
+                }
+
+                resultComponent.appendChild(
+                    this.templateEngine({
+                        tag: 'span',
+                        cls: classArr,
+                        content: title,
+                    })
+                )
+                break
             default:
                 break
         }
@@ -174,11 +222,62 @@ class Popup {
     //render settings screen
     async renderSettingsScreen() {
         this.root.innerHTML = ''
+
+        const onClickTab = (e) => {
+            /* переключает табы. если нажата какая-то новая, то с текущей снимется класс select
+            а новой он наоборот установится
+            за то,
+            */
+            const target = e.target
+            if (e.target.classList.contains('popup-tab-header')) {
+                if (!target.classList.contains('selected')) {
+                    for (let tab of target.parentNode.querySelector('span')) {
+                        if (tab.classList.includes('selected')) {
+                            tab.classList.remove('selected')
+                        }
+                    }
+
+                    e.target.classList.add('selected')
+                }
+            }
+        }
         this.root.appendChild(
             this.templateEngine({
-                tag: 'h1',
-                cls: 'popup-tab-title',
-                content: 'Settings',
+                tag: 'div',
+                cls: 'popup-tab-title-wrapper',
+                content: [
+                    {
+                        tag: 'component',
+                        name: 'popup-tab-header',
+                        attrs: {
+                            'data-value': 'env',
+                            'data-page': 'environments',
+                        },
+                        params: {
+                            title: 'Envs',
+                        },
+                    },
+                    {
+                        tag: 'component',
+                        name: 'popup-tab-header',
+                        attrs: {
+                            'data-value': 'settings',
+                        },
+                        params: {
+                            title: 'Settings',
+                        },
+                    },
+                    {
+                        tag: 'component',
+                        name: 'popup-tab-header',
+                        attrs: {
+                            'data-value': 'contact',
+                        },
+                        params: {
+                            title: 'Contact',
+                        },
+                    },
+                ],
             })
         )
 
@@ -435,12 +534,18 @@ chrome.storage.sync.set({
             id: 23421341234, //some timestemp
             url: 'https://srvcrp-digops-dt1.pegacloud.net/',
             name: 'Dev',
+            devStudio: {
+                title: 'DEV',
+                icon: '🏡',
+                color: '',
+            },
+            logs: {},
             enabled: true,
             tracer: {
                 events: [
                     {
                         title: 'Deselect all',
-                        settins: 'all_false',
+                        settings: 'all_false',
                     },
                 ],
             },

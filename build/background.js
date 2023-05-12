@@ -41,6 +41,13 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         injectJavascript(tabId, ['./build/content_scripts/tracer-settings.js'])
         processedTabs.push(tabId)
         injectCSS(tabId)
+    } else if (
+        tab.title.includes('Clipboard Viewer') &&
+        changeInfo.status &&
+        changeInfo.status === 'complete'
+    ) {
+        injectJavascript(tabId, ['./build/content_scripts/clipboard.js'])
+        processedTabs.push(tabId)
     } else if (changeInfo.status && changeInfo.status === 'complete') {
         injectJavascript(tabId, ['./build/content-checker.js'])
     }

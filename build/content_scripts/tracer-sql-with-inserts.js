@@ -20,9 +20,8 @@ function enrichSqlWithInserts(rows) {
             .innerText.trim()
 
         //row value
-        let eventTypeValue = r
-            .querySelector('.eventElementData')
-            ?.innerText.trim()
+        let eventTypeValueElement = r.querySelector('.eventElementData')
+        let eventTypeValue = eventTypeValueElement?.innerText.trim()
 
         if (!eventTypeValue) {
             continue
@@ -36,6 +35,12 @@ function enrichSqlWithInserts(rows) {
         //get inserts
         if (eventType === 'SQL Inserts') {
             sqlInserts = eventTypeValue
+            console.log(eventTypeValueElement)
+            const eventTypeXMPElement =
+                eventTypeValueElement.querySelector('xmp')
+            if (eventTypeXMPElement) {
+                eventTypeXMPElement.style.whiteSpace = 'pre-wrap'
+            }
         }
 
         if (sqlQuery && sqlInserts) {
@@ -68,10 +73,10 @@ function addSqlWithInserts() {
 
     for (const r of rows) {
         const eventType = r
-            .querySelector('.eventElementDataBold')
+            ?.querySelector('.eventElementDataBold')
             .innerText.trim()
         const eventTypeValue = r
-            .querySelector('.eventElementData')
+            ?.querySelector('.eventElementData')
             .innerText.trim()
 
         if (eventType === 'Event Type' && eventTypeValue === 'DB Query') {
@@ -114,7 +119,18 @@ function addSqlWithInserts() {
                 //<TD CLASS='eventElementData'>"
                 const enrichedSqlRowData = document.createElement('td')
                 enrichedSqlRowData.classList.add('eventElementData')
-                enrichedSqlRowData.innerText = query
+                /* 
+                TODO: add white-space: pre-wrap для SQL inserts и для самой квери. 
+                саму кверю нужно будет брать после преобразования
+                посмотреть на строке sqlFormatterGlobalObj.sqlFormatter.format
+                */
+                let modifiedQuery = sqlFormatterGlobalObj.sqlFormatter
+                    .format(query)
+                    .replaceAll(' ', '&nbsp;')
+
+                enrichedSqlRowData.innerHTML = modifiedQuery //sqlFormatterGlobalObj.sqlFormatter.format(query)
+                enrichedSqlRowData.dataset.query = query
+                enrichedSqlRowData.style.whiteSpace = 'pre-wrap'
 
                 //row itself
                 const enrichedSqlRow = document.createElement('tr')
@@ -134,12 +150,12 @@ function addSqlWithInserts() {
                     try {
                         navigator.clipboard.writeText(
                             sqlFormatterGlobalObj.sqlFormatter.format(
-                                enrichedSqlRowData.innerText
+                                enrichedSqlRowData.dataset.query
                             )
                         )
                     } catch (error) {
                         navigator.clipboard.writeText(
-                            enrichedSqlRowData.innerText
+                            enrichedSqlRowData.dataset.query
                         )
                     }
 

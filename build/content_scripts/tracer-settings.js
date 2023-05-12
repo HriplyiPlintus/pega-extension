@@ -81,8 +81,10 @@ function appendDeselectOOTBRSBtn() {
             }
         }
 
-        const OOTBRulesets = rulesetsArr.filter((rs) =>
-            /Pega[-]?.*/.test(rs.innerText.trim())
+        const OOTBRulesets = rulesetsArr.filter(
+            (rs) =>
+                /Pega[-]?.*/.test(rs.innerText.trim()) ||
+                rs.innerText.trim().includes('Theme-Cosmos')
         )
 
         if (OOTBRulesets.length > 0) {

@@ -71,6 +71,8 @@ if (typeof Tabs !== 'function') {
                 this.tabsListMiddleClickHandler
             )
 
+            console.log('tabsref', this.tabsRef)
+
             //делаю все открытые табы сразу draggable
             for (const t of this.tabsRef.querySelectorAll('li[role="tab"]')) {
                 t?.setAttribute('draggable', true)
@@ -129,13 +131,26 @@ if (typeof Tabs !== 'function') {
         }
 
         //копирует в клипборд, добавляет класс
-        makeElementTextCopiable(element, textToCopy) {
+        makeElementTextCopiable(element, textToCopy, tooltip = 'Copy value') {
             if (element) {
                 element.classList.add('pega-extension__copy-value')
+                element.dataset.tooltip = tooltip
 
                 //функция копирования класса рула в клипборд
                 element.addEventListener('click', () => {
                     navigator.clipboard.writeText(textToCopy)
+
+                    const copyDonePopup = document.createElement('div')
+                    copyDonePopup.classList.add(
+                        'pega-extension__copied_to_clipboard'
+                    )
+                    copyDonePopup.innerText = 'Copied to clipboard'
+
+                    document.querySelector('body').appendChild(copyDonePopup)
+
+                    setTimeout(() => {
+                        copyDonePopup.remove()
+                    }, 1500)
                 })
             }
         }
@@ -237,6 +252,7 @@ if (typeof Tabs !== 'function') {
 
         setCurrent(tab) {
             console.log('setCurrent')
+
             tab?.setAttribute('draggable', true) //делает табу draggable
 
             //actualize list of visited tabs on each attempt of setting current
@@ -358,7 +374,11 @@ if (typeof Tabs !== 'function') {
                 cssLink.type = 'text/css'
                 iframeDoc.head.appendChild(cssLink)
 
-                this.makeElementTextCopiable(classLabelElement, className)
+                this.makeElementTextCopiable(
+                    classLabelElement,
+                    className,
+                    'Copy class name'
+                )
 
                 //Purpose для decision table
                 const ruleNameElement =
@@ -386,24 +406,44 @@ if (typeof Tabs !== 'function') {
                     ruleName = ruleName.trim()
                 }
 
-                //TODO: эту часть надо вынести в отдельную функцию вида (labelElement, textToCopy) => {}
+                //добавление копируемости по клику
                 const ruleNameLabelElement = ruleNameElement
                     ?.closest('div.content-item')
                     .querySelector('label.field-caption')
 
-                this.makeElementTextCopiable(ruleNameLabelElement, ruleName)
+                this.makeElementTextCopiable(
+                    ruleNameLabelElement,
+                    ruleName,
+                    'Copy rule name'
+                )
 
-                let rulesetData =
-                    innerHeader
-                        .querySelector(
-                            'div.content-item[data-ui-meta*="pzRuleFormRuleset"] div[data-node-id="pzRuleFormRuleset"] a'
-                        )
-                        ?.innerText.trim()
+                const rulesetElement = innerHeader.querySelector(
+                    'div.content-item[data-ui-meta*="pzRuleFormRuleset"] div[data-node-id="pzRuleFormRuleset"] a'
+                )
+
+                const rulesetData =
+                    rulesetElement?.innerText
+                        .trim()
                         .replace(/[\[\]]/g, '')
                         .split(' ') || []
 
                 const branchName = rulesetData[2] ?? undefined
                 const rulesetName = rulesetData[0]?.split(':')[0]
+
+                //добавление кликабельности для рулсета (сделано с версией, TODO: добавить конфигурируемость через настройки)
+                if (rulesetName) {
+                    const rulesetNameElement = rulesetElement
+                        .closest('.content-sub_section')
+                        ?.querySelector('label.field-caption')
+
+                    if (rulesetNameElement) {
+                        this.makeElementTextCopiable(
+                            rulesetNameElement,
+                            rulesetData[0],
+                            'Copy ruleset name'
+                        )
+                    }
+                }
 
                 const tabInfo = {
                     ruleType: ruleTypeName,
@@ -425,7 +465,7 @@ if (typeof Tabs !== 'function') {
 
                 //add tag icon
                 const ruleLabelAndType =
-                    ruleLabelElement.closest('div.content-item')?.parentElement
+                    ruleLabelElement?.closest('div.content-item')?.parentElement
 
                 if (
                     ruleLabelAndType &&
@@ -438,55 +478,31 @@ if (typeof Tabs !== 'function') {
 
                     const icon = document.createElement('img')
                     icon.setAttribute('id', 'pega-extension__rule-info-sig')
-                    icon.style.height = '1.23em'
-                    icon.style.marginBottom = '-4px'
-                    icon.src = chrome.runtime.getURL('./assets/img/id-card.png')
+                    icon.classList.add('pega-extension__copy-value')
+                    icon.style.height = '1.23em' //sometimes there is a lag between css inject and html inject
+                    icon.src = chrome.runtime.getURL(
+                        './assets/img/tag-white.png'
+                    )
 
                     wrapperDiv.appendChild(icon)
 
-                    const ruleSignature = `${tabInfo.ruleType} ${
-                        tabInfo.className ? tabInfo.className + '.' : ''
-                    }${tabInfo.ruleName}`
-                    this.makeElementTextCopiable(icon, ruleSignature)
+                    let ruleSignature = ''
+                    if (tabInfo.ruleType === 'Branch') {
+                        ruleSignature = tabInfo.ruleLabel
+                    } else {
+                        ruleSignature = `${tabInfo.ruleType} ${
+                            tabInfo.className ? tabInfo.className + '.' : ''
+                        }${tabInfo.ruleName}`
+                    }
+
+                    this.makeElementTextCopiable(
+                        icon.parentElement,
+                        ruleSignature,
+                        'Copy rule signature'
+                    )
 
                     ruleLabelAndType.appendChild(wrapperDiv)
                 }
-                /*
-                TODO: Product, DSS
-                */
-                /*
-                if (
-                    !innerHeader.querySelector('#pega-extension__rule-info-sig')
-                ) {
-                    console.log('will try to add SIG')
-                    const sigDiv = document.createElement('div')
-                    const sigLabel = document.createElement('label')
-
-                    sigLabel.classList.add('rule_keys_dataLabelForWrite')
-                    sigLabel.textContent = 'SIG'
-
-                    sigDiv.appendChild(sigLabel)
-                    sigDiv.classList.add('flex')
-                    sigDiv.classList.add('content-item')
-                    sigDiv.classList.add('pega-extension__rule-info-lable')
-                    sigDiv.setAttribute('id', 'pega-extension__rule-info-sig')
-
-                     const signature = [
-                            { type: 'attr', attr: 'ruleType' },
-                            { type: 'text', value: ' ' },
-                        ] 
-                    
-                    const ruleSignature = `${tabInfo.ruleType} ${tabInfo.className}.${tabInfo.ruleName}`
-                    this.makeElementTextCopiable(sigLabel, ruleSignature)
-
-                    classElements
-                        ?.closest('div.rule-details')
-                        ?.insertBefore(
-                            sigDiv,
-                            classElements.closest('div.rule-details').firstChild
-                        )
-                }
-                */
                 //добавление лейбла SIG
             } else if (tabContentElement) {
                 //for home page - она не в iframe
@@ -719,6 +735,7 @@ if (typeof Tabs !== 'function') {
 
         //закрытие табы по клику по колесику мыши
         tabsListMiddleClickHandler(e) {
+            console.log('3 buttons click')
             let selectedTab = e.target.closest('li[role="tab"]')
             if (selectedTab && e.button === 1) {
                 selectedTab.querySelector('.iconCloseSmall')?.click()
@@ -883,15 +900,6 @@ if (typeof Tabs !== 'function') {
                     )
                 })
             } else {
-                /*
-                logFileAClick.dataset.click = logSourceSettings['data-click']
-                logFileAClick.setAttribute('name', logSourceSettings['name'])
-                logFileAClick.setAttribute('href', '#')
-                logFileAClick.setAttribute('onclick', 'pd(event);')
-                logFileAClick.addEventListener('click', () => {
-                    console.log('log file a click clicked')
-                })
-                */
                 logFileAClick.href = logSourceSettings.href
                 logFileAClick.target = '_blank'
             }
