@@ -34,6 +34,13 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 
         processedTabs.push(tabId)
     } else if (
+        tab.title.includes('Tracer - PegaRULES') &&
+        changeInfo.status &&
+        changeInfo.status === 'complete'
+    ) {
+        injectJavascript(tabId, ['./build/content_scripts/tracer.js'])
+        processedTabs.push(tabId)
+    } else if (
         tab.title.includes('Tracer Settings') &&
         changeInfo.status &&
         changeInfo.status === 'complete'
