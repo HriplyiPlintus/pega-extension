@@ -99,21 +99,22 @@ function addSqlWithInserts() {
                 )
 
                 copiedIcon.classList.add(
-                    'pega-extension__tracer-event-sql-inserts-icon-copy'
+                    'pega-extension__tracer-event-sql-inserts-icon-copied'
                 )
                 copiedIcon.classList.add('pega-extension__display-none') //not visible by default
 
-                const copyIconsWrapper = document.createElement('div') //for tooltips support
-                copyIconsWrapper.appendChild(copyIcon)
-                copyIconsWrapper.appendChild(copiedIcon)
-                copyIconsWrapper.dataset.tooltip = 'Copy formatted SQL'
-                copyIconsWrapper.classList.add('pega-extension__copy-value')
+                const copyIconWrapper = document.createElement('div') //for tooltips support
+                copyIconWrapper.appendChild(copyIcon)
+                //copyIconWrapper.appendChild(copiedIcon)
+                copyIconWrapper.dataset.tooltip = 'Copy formatted SQL'
+                copyIconWrapper.classList.add('pega-extension__copy-value')
 
                 const actionIconsWrapper = document.createElement('div')
                 actionIconsWrapper.classList.add(
                     'pega-extension__tracer-event-sql-icons-wrapper'
                 )
-                actionIconsWrapper.appendChild(copyIconsWrapper)
+                actionIconsWrapper.appendChild(copyIconWrapper)
+                actionIconsWrapper.appendChild(copiedIcon)
 
                 const enrichedSqlRowName = document.createElement('td')
                 enrichedSqlRowName.classList.add('eventElementDataBold')
@@ -125,7 +126,7 @@ function addSqlWithInserts() {
                 const enrichedSqlRowData = document.createElement('td')
                 enrichedSqlRowData.classList.add('eventElementData')
 
-                copyIconsWrapper.addEventListener('click', (e) => {
+                copyIconWrapper.addEventListener('click', (e) => {
                     if (
                         e.target.classList.contains(
                             'pega-extension__tracer-event-sql-inserts-icon-copy'
@@ -144,9 +145,13 @@ function addSqlWithInserts() {
                         }
 
                         const toggleIconCopyVisibility = () => {
-                            for (const ci of e.target.parentElement.querySelectorAll(
-                                '.pega-extension__tracer-event-sql-inserts-icon-copy'
-                            )) {
+                            for (const ci of e.target
+                                .closest(
+                                    '.pega-extension__tracer-event-sql-icons-wrapper'
+                                )
+                                ?.querySelectorAll(
+                                    '.pega-extension__tracer-event-sql-inserts-icon-copy, .pega-extension__tracer-event-sql-inserts-icon-copied'
+                                )) {
                                 ci.classList.toggle(
                                     'pega-extension__display-none'
                                 )
@@ -156,7 +161,7 @@ function addSqlWithInserts() {
 
                         const copyDonePopup = document.createElement('div')
                         copyDonePopup.classList.add(
-                            'pega-extension__copied_to_clipboard'
+                            'pega-extension__copied-to-clipboard'
                         )
                         copyDonePopup.innerText = 'Copied to clipboard'
 

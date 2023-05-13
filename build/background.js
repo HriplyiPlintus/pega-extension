@@ -77,7 +77,16 @@ function injectJavascript(tabId, jsFilesArr, callback) {
                 callback()
             }
         })
-        .catch((err) => console.error(err))
+        .catch((err) => {
+            /*
+            if (
+                !err
+                    .toString()
+                    .contains('Cannot access chrome:// and edge:// URLs')
+            )
+                console.error(err)
+                */
+        })
 }
 
 function injectCSS(tabId) {

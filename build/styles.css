@@ -33,7 +33,7 @@
     color: #fff;
     text-align: center;
     padding: 5px 8px;
-    transform: translate(-40%, 90%);
+    transform: translate(-40%, 2.3em);
     max-width: 120px;
     font-size: 12px;
     z-index: 1000;
@@ -69,7 +69,7 @@
     }
 }
 
-.pega-extension__copied_to_clipboard {
+.pega-extension__copied-to-clipboard {
     position: fixed;
     left: 50%;
     bottom: 0;
@@ -81,7 +81,8 @@
     background: #121216;
     color: #fff;
     padding: 15px 30px;
-    border-radius: 4px;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
     animation: smooth-appear 0.2s ease forwards;
 }
 
@@ -114,10 +115,14 @@
 }
 
 .pega-extension__tracer-event-sql-inserts-icon-copy {
+    visibility: hidden;
+}
+
+.pega-extension__tracer-event-sql-inserts-icon-copy,
+.pega-extension__tracer-event-sql-inserts-icon-copied {
     position: absolute;
     height: 2em;
     cursor: pointer;
-    visibility: hidden;
 }
 
 .pega-extension__tracer-event-sql-formatted {

@@ -136,7 +136,7 @@ if (typeof Tabs !== 'function') {
 
                     const copyDonePopup = document.createElement('div')
                     copyDonePopup.classList.add(
-                        'pega-extension__copied_to_clipboard'
+                        'pega-extension__copied-to-clipboard'
                     )
                     copyDonePopup.innerText = 'Copied to clipboard'
 
