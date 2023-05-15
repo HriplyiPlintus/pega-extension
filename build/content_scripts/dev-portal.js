@@ -456,10 +456,15 @@ if (typeof Tabs !== 'function') {
                     ) => {
                         const wrapperDiv = document.createElement('div')
                         wrapperDiv.classList.add('content-item')
+                        wrapperDiv.classList.add(
+                            'pega-extension__copy-value-for-icon'
+                        )
 
                         const icon = document.createElement('img')
                         icon.setAttribute('id', elementId)
-                        icon.classList.add('pega-extension__copy-value')
+                        icon.classList.add(
+                            'pega-extension__copy-value-for-icon'
+                        )
                         icon.style.height = '1.23em' //sometimes there is a lag between css inject and html inject
                         icon.src = chrome.runtime.getURL(iconPath)
 
