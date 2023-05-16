@@ -472,12 +472,12 @@ if (typeof Tabs !== 'function') {
 
                 this._tabsInfo[tabId].info = tabInfo
 
-                //подготовка к добавлению кастомных иконок
+                //find parent element where to place custom icons
                 const ruleLabelAndType =
                     ruleLabelElement?.closest('div.content-item')?.parentElement
 
                 if (ruleLabelAndType) {
-                    //функция для добавления иконки с копируемым текстом
+                    //function for adding icon with click action
                     const addCustomAcitonIcon = (
                         infoValue,
                         tooltipText,
@@ -508,7 +508,7 @@ if (typeof Tabs !== 'function') {
 
                         ruleLabelAndType.appendChild(wrapperDiv)
                     }
-                    //добавление pzInsKey
+                    //adding pzInsKey icon
                     const elementWithKey =
                         iframeDoc.querySelector('textarea#PRXML')
 
@@ -537,7 +537,6 @@ if (typeof Tabs !== 'function') {
                     }
 
                     //add tag icon
-
                     if (
                         !ruleLabelAndType.querySelector(
                             '#pega-extension__rule-info-sig'
@@ -590,7 +589,27 @@ if (typeof Tabs !== 'function') {
                     }
                 }
 
-                //добавление лейбла SIG
+                /* for some operations like rule checkout tab content 
+                markup regenerated and it should trigger markup parsing */
+                const tabContentMutationObserver = new MutationObserver(() => {
+                    if (
+                        !iframeDoc.querySelector(
+                            '#pega-extension__rule-info-pzinskey'
+                        )
+                    ) {
+                        const tabToRework = this.tabsRef?.querySelector(
+                            `li#${tabId}`
+                        )
+
+                        tabContentMutationObserver.disconnect()
+                        this.setCurrent(tabToRework)
+                    }
+                })
+
+                tabContentMutationObserver.observe(iframeDoc, {
+                    subtree: true,
+                    childList: true,
+                })
             } else if (tabContentElement) {
                 //for home page - она не в iframe
                 const ruleLabel = document
