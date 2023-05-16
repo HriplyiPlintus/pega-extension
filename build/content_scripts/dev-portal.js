@@ -534,6 +534,36 @@ if (typeof Tabs !== 'function') {
                                 './assets/img/key.png'
                             )
                         }
+
+                        /* for some operations like rule checkout tab content 
+                        markup regenerated and it should trigger markup parsing.
+                        checking for element with concrete element and want to avoid 
+                        cases when observer will be attached to a tab without custom functionality.
+                        no custom functionality == I don't want to watch for this tab state at all.
+                        */
+                        const tabContentMutationObserver = new MutationObserver(
+                            () => {
+                                if (
+                                    !iframeDoc.querySelector(
+                                        '#pega-extension__rule-info-pzinskey'
+                                    )
+                                ) {
+                                    const tabToRework =
+                                        this.tabsRef?.querySelector(
+                                            `li#${tabId}`
+                                        )
+
+                                    tabContentMutationObserver.disconnect()
+
+                                    this.setCurrent(tabToRework)
+                                }
+                            }
+                        )
+
+                        tabContentMutationObserver.observe(iframeDoc, {
+                            subtree: true,
+                            childList: true,
+                        })
                     }
 
                     //add tag icon
@@ -588,28 +618,6 @@ if (typeof Tabs !== 'function') {
                         }
                     }
                 }
-
-                /* for some operations like rule checkout tab content 
-                markup regenerated and it should trigger markup parsing */
-                const tabContentMutationObserver = new MutationObserver(() => {
-                    if (
-                        !iframeDoc.querySelector(
-                            '#pega-extension__rule-info-pzinskey'
-                        )
-                    ) {
-                        const tabToRework = this.tabsRef?.querySelector(
-                            `li#${tabId}`
-                        )
-
-                        tabContentMutationObserver.disconnect()
-                        this.setCurrent(tabToRework)
-                    }
-                })
-
-                tabContentMutationObserver.observe(iframeDoc, {
-                    subtree: true,
-                    childList: true,
-                })
             } else if (tabContentElement) {
                 //for home page - она не в iframe
                 const ruleLabel = document
