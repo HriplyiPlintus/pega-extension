@@ -21,11 +21,13 @@
 }
 
 .pega-extension__copy-value,
+.pega-extension__copy-value-class,
 .pega-extension__copy-value-for-icon {
     cursor: pointer;
 }
 
 .pega-extension__copy-value::before,
+.pega-extension__copy-value-class::before,
 .pega-extension__copy-value-for-icon::before {
     content: attr(data-tooltip);
     position: absolute;
@@ -46,11 +48,17 @@
     transform: translate(-40%, 1.5em);
 }
 
+/* touches edge of the frame */
+.pega-extension__copy-value-class::before {
+    transform: translate(-6%, 1.5em);
+}
+
 .pega-extension__copy-value-for-icon::before {
     transform: translate(-40%, 2.2em);
 }
 
 .pega-extension__copy-value:hover::before,
+.pega-extension__copy-value-class:hover::before,
 .pega-extension__copy-value-for-icon:hover::before {
     display: block;
 }

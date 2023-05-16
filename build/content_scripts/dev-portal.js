@@ -127,10 +127,14 @@ if (typeof Tabs !== 'function') {
         //копирует в клипборд, добавляет класс
         makeElementTextCopiable(element, textToCopy, tooltip = 'Copy value') {
             if (element) {
-                element.classList.add('pega-extension__copy-value')
+                if (tooltip.includes('class name')) {
+                    element.classList.add('pega-extension__copy-value-class')
+                } else {
+                    element.classList.add('pega-extension__copy-value')
+                }
+
                 element.dataset.tooltip = tooltip
 
-                //функция копирования класса рула в клипборд
                 element.addEventListener('click', () => {
                     navigator.clipboard.writeText(textToCopy)
 
