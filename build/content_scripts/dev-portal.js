@@ -149,6 +149,36 @@ if (typeof Tabs !== 'function') {
             }
         }
 
+        //function to add refresh icon to the rule type window
+        addRefreshIcon(ruleType, id, clickHandler, headerElement) {
+            if (ruleType === 'Branch') {
+            }
+
+            const actionBtnsWrapper = headerElement
+                .querySelector('button[data-click*="doClose"]')
+                ?.closest('div.content')
+
+            const refreshWrapper = document.createElement('div')
+            refreshWrapper.id = id
+
+            refreshWrapper.className =
+                'content-item flex flex-row hotkey-ruleform-refresh'
+
+            const refreshIconWrapper = document.createElement('div')
+            refreshIconWrapper.classList.add('content-inner')
+            const refreshIcon = document.createElement('i')
+            refreshIcon.className = 'icons pi pi-refresh'
+            refreshIcon.setAttribute('onclick', 'pd(event)')
+            refreshIcon.dataset.click = clickHandler
+
+            refreshIconWrapper.appendChild(refreshIcon)
+            refreshWrapper.appendChild(refreshIconWrapper)
+            actionBtnsWrapper.insertBefore(
+                refreshWrapper,
+                actionBtnsWrapper.firstChild
+            )
+        }
+
         //инициализирует список таб для переключения (список visited)
         //TODO: перенести в эту функцию часть из конструктора
         initVisitedTabs() {
@@ -507,6 +537,7 @@ if (typeof Tabs !== 'function') {
                     }
 
                     //add tag icon
+
                     if (
                         !ruleLabelAndType.querySelector(
                             '#pega-extension__rule-info-sig'
@@ -527,6 +558,35 @@ if (typeof Tabs !== 'function') {
                             'pega-extension__rule-info-sig',
                             './assets/img/tag-white.png'
                         )
+
+                        //add refresh icons
+                        if (tabInfo.ruleType === 'Branch') {
+                            const id = 'pega-extension__branch-icon-refresh'
+                            const clickHandler =
+                                '[["refresh", ["currentharness","", "pxLPRefreshActivity", "{\\"sp\\":\\"=\\",\\"dp\\":\\"\\"}", "", "pxLPRefreshTransform,{\\"sp\\":\\"\\",\\"dp\\":\\"\\"}",":event","","pyLanding"]]]'
+
+                            if (!innerHeader.querySelector(`#${id}`)) {
+                                this.addRefreshIcon(
+                                    tabInfo.ruleType,
+                                    id,
+                                    clickHandler,
+                                    innerHeader
+                                )
+                            }
+                        } else if (tabInfo.ruleType === 'Application') {
+                            const id = 'pega-extension__app-icon-refresh'
+                            const clickHandler =
+                                '[["runScript", ["onBeforeExecuteActionWrapper(\\"REFRESH\\")"]],["refresh", ["currentharness","", "pzRuleFormToolbarRefresh", "{\\"sp\\":\\"=\\",\\"dp\\":\\"\\"}", "", ",{\\"sp\\":\\"\\",\\"dp\\":\\"\\"}",":event","","RH_1"]]]'
+
+                            if (!innerHeader.querySelector(`#${id}`)) {
+                                this.addRefreshIcon(
+                                    tabInfo.ruleType,
+                                    id,
+                                    clickHandler,
+                                    innerHeader
+                                )
+                            }
+                        }
                     }
                 }
 
