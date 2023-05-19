@@ -125,10 +125,15 @@ if (typeof Tabs !== 'function') {
         }
 
         //копирует в клипборд, добавляет класс
-        makeElementTextCopiable(element, textToCopy, tooltip = 'Copy value') {
+        makeElementTextCopiable(
+            element,
+            textToCopy,
+            tooltip = 'Copy value',
+            isLeftmost = false
+        ) {
             if (element) {
-                if (tooltip.includes('class name')) {
-                    element.classList.add('pega-extension__copy-value-class')
+                if (isLeftmost) {
+                    element.classList.add('pega-extension__copy-value-leftmost')
                 } else {
                     element.classList.add('pega-extension__copy-value')
                 }
@@ -394,7 +399,8 @@ if (typeof Tabs !== 'function') {
                 this.makeElementTextCopiable(
                     classLabelElement,
                     className,
-                    'Copy class name'
+                    'Copy class name',
+                    true
                 )
 
                 //Purpose для decision table
@@ -428,10 +434,12 @@ if (typeof Tabs !== 'function') {
                     ?.closest('div.content-item')
                     .querySelector('label.field-caption')
 
+                //if class name not applicable for the rule then id will be the leftmost
                 this.makeElementTextCopiable(
                     ruleNameLabelElement,
                     ruleName,
-                    'Copy rule name'
+                    'Copy rule name',
+                    className ? false : true
                 )
 
                 const rulesetElement = innerHeader.querySelector(
