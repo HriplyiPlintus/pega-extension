@@ -526,9 +526,12 @@ if (typeof Tabs !== 'function') {
                         const tempElement = document.createElement('div')
                         tempElement.innerHTML = elementWithKey.innerText.trim()
 
-                        const pzInsKey = tempElement
-                            .querySelector('pzDocumentKey')
-                            ?.innerText.trim()
+                        console.log('elementwithkey', tempElement)
+
+                        const pzInsKey = (
+                            tempElement.querySelector('pzDocumentKey') ||
+                            tempElement.querySelector('pzinskey')
+                        )?.innerText.trim()
 
                         if (pzInsKey) {
                             addCustomAcitonIcon(
