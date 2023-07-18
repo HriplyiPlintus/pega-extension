@@ -534,6 +534,7 @@ if (typeof Tabs !== 'function') {
                         const tempElement = document.createElement('div')
                         tempElement.innerHTML = elementWithKey.innerText.trim()
 
+                        //BUG: sometimes it causes reload till timeout constant. открыта таба создания Association рула, пытаюсь перключиться на предыдущую с помощью таб свитча
                         console.log('elementwithkey', tempElement)
 
                         const pzInsKey = (

@@ -2,6 +2,7 @@
     --link-blue-regular: #0078d4;
     --action-button-hover: #eaeaea;
     --action-button-background: #ededed;
+    --settings-row-border: #b6b6b6;
     --action-button-border-radius: 4px;
     --font-color-regular: #3c4043;
 }
@@ -27,19 +28,19 @@
     width: 500px;
 }
 
-.popup-tab-title-wrapper {
+.header-navbar {
     display: flex;
     flex-direction: row;
     gap: 1em;
 }
 
-.popup-tab-title.selected {
+.navbar-title.selected {
     text-decoration: underline;
     text-underline-offset: 0.4em;
     text-decoration-color: var(--font-color-regular);
 }
 
-.popup-tab-title {
+.navbar-title {
     font-size: 20px;
     font-weight: 500;
     margin-block-start: 0.67em;
@@ -56,7 +57,18 @@
     flex-direction: column;
 }
 
+/*
 .popup-tab-header {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    font-size: 16px;
+    line-height: 32px;
+    margin-bottom: 7px;
+}
+*/
+
+.navbar-tab-header {
     display: flex;
     flex-direction: row;
     justify-content: space-between;
@@ -98,6 +110,30 @@
     margin-top: 2px;
 }
 
+/* area with rounded borders */
+.workarea-default {
+    border-radius: var(--action-button-border-radius);
+    box-shadow: 0px 1.6px 3.6px rgb(0 0 0 / 25%), 0px 0px 2.9px rgb(0 0 0 / 22%);
+    padding: 10px 10px 15px 10px;
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+
+.workarea-noresults {
+    height: 150px;
+}
+
+/* align content to be in the middle of the screen */
+.layout-all-in-the-middle {
+    display: flex;
+    align-items: center;
+}
+
+.layout-stack {
+    display: flex;
+    flex-direction: column;
+}
+
 .layout-border {
     display: flex;
     flex-direction: row;
@@ -107,12 +143,6 @@
     padding: 10px 10px 15px 10px;
     margin-top: 5px;
     margin-bottom: 5px;
-}
-
-.layout-stack {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
 }
 
 .settings-item-content-title {
@@ -289,3 +319,126 @@ input.setting-input-field {
 input.setting-input-field:hover {
     background-color: #fafafa;
 }
+
+.setting-row-wrapper {
+    border-bottom: 1px solid #b6b6b6;
+    display: flex;
+    align-items: flex-start;
+    flex-direction: column;
+    padding-block-end: 12px;
+    padding-block-start: 12px;
+    color: #3c4043;
+    font-size: 14px;
+    line-height: 20px;
+    box-sizing: border-box;
+    width: 500px;
+}
+
+.setting-item-description {
+    color: #767676;
+    font-size: 13px;
+}
+
+.setting-item-label {
+    font-size: 14px;
+    line-height: 32px;
+    font-weight: 400;
+}
+
+.setting-item {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 1em;
+    width: 100%;
+}
+
+.setting-item-control {
+    display: flex;
+    flex-direction: column;
+}
+
+.control-msg-alert {
+    color: #cc0000;
+    white-space: nowrap;
+    font-size: 12px;
+    line-height: 16px;
+}
+
+.link-info {
+    color: rgb(13, 110, 253);
+    text-decoration: underline;
+    text-decoration-color: rgba(13, 110, 253, 0.75);
+    text-underline-offset: 0.25em !important;
+}
+/* tab switch control */
+.control-input-with-btn {
+    max-height: 32px; /*just got some issues with the border TODO: fix*/
+    min-height: 32px;
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 400;
+    background: #ffffff;
+    border: 1px solid #bebebe;
+    color: #2b2b2b;
+    border-radius: 2px;
+    outline: none;
+    width: 11em;
+    display: flex;
+    flex-direction: row;
+    box-sizing: border-box;
+}
+
+.control-input-with-btn input,
+.control-input-with-btn button {
+    border: none;
+    outline: none;
+    box-shadow: none;
+    height: inherit;
+    font-size: inherit;
+    box-sizing: border-box;
+}
+
+.control-input-with-btn input {
+    width: 100%;
+    line-height: inherit;
+    padding: 0 11px;
+    flex: 1 0 0px;
+}
+
+.control-input-with-btn button {
+    width: 32px;
+    background: none;
+    /* padding: 1px 9px 1px 3px; */
+}
+
+.control-input-with-btn:focus-within button {
+    display: none;
+}
+
+.control-input-with-btn button > img:hover {
+    background: #e5e5e5;
+    border-radius: 2px;
+}
+
+.control-input-with-btn button > img {
+    padding: 4px;
+    margin: 2px 0 0 0;
+}
+
+.control-input-with-btn:focus-within {
+    background: none;
+    box-shadow: none;
+    border: 2px solid #888888;
+}
+
+.control-input-with-btn:hover {
+    background: #ffffff;
+    border-color: #979797;
+}
+
+.control-input-with-btn button:hover {
+    cursor: pointer;
+}
+
+/* tab switch control */
