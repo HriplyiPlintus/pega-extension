@@ -90,7 +90,6 @@ class Popup {
                 return result
             },
             sysKeysMapping: (key) => {
-                console.log('key', key)
                 return key === 'Meta'
                     ? 'Command'
                     : key === 'Alt'
@@ -194,7 +193,6 @@ class Popup {
                 then render bavbar nad navbar content wrapper
                 also override root
                 */
-                //console.log('no header-navbar')
                 this.root.appendChild(this.buildComponent('header-navbar'))
                 this.root.appendChild(this.buildComponent('navbar-tab-wrapper'))
             }

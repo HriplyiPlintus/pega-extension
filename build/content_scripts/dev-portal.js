@@ -36,7 +36,6 @@ if (typeof Tabs !== 'function') {
         constructor() {
             //пока реализовано только для dev студии
             if (!document.querySelector('div.dev-studio')) {
-                console.log('!!!!!!!!! не дев студия')
                 return
             }
 

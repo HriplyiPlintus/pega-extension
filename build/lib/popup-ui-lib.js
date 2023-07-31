@@ -3,7 +3,6 @@ function settingTabSwitchShortcut(context) {
         context: context,
         handlers: {
             onKeyDown: (e) => {
-                console.log('this', this)
                 e.preventDefault()
 
                 const target = e.target
