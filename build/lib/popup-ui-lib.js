@@ -1,14 +1,55 @@
+//TODO: limit the interface
+/*
+get shortcut
+if exists
+    set input value - need just to display it
+        so get formatted version
+otherwise keep value empty
+
+how to store shortcut?
+{ostype, syskey, value}
+
+so to set it use the same pattern but interface will be (syskey, key)
+setShortcut(sysKey, key)
+    {ostype, syskey, key}
+
+allowedSysKeys: [array_of_syskeys] for each platform
+win: ctrl, alt
+mac: control, option, command ('alt', 'meta', 'control')
+
+sysKeyDisplay
+ */
+/*
+interface: markup bilder function, current settings, set new hotkey function
+*/
 function settingTabSwitchShortcut(context) {
-    return {
+    //markup with handlers
+    const settings = {
         context: context,
         handlers: {
             onKeyDown: (e) => {
+                /*
+                the result of this function is to set: 
+                input value, dataset.hotkey, set hotkey setting, dataset.value
+                also sets value during kydown event
+                value and dataset.hotkey 
+                from tabSwitchSettings
+                    [os_type].sysKeyDisplay
+                    .setShortcut
+                    [os_type].allowedSysKeys
+                    [os_type].sysKeysMapping
+                    [os_type].valMsg
+                    getShortcut()
+                */
                 e.preventDefault()
 
                 const target = e.target
+
+                //most of the keys are in Key<key_in_upperCase> and we need only ctual key or the whole name
                 let key = e.code.includes('Key')
                     ? e.code.substring(3, 4)
                     : e.key
+
                 key = key.length === 1 ? key.toLowerCase() : key
 
                 const tabSwitchInputValMsg = target
@@ -26,17 +67,19 @@ function settingTabSwitchShortcut(context) {
                             context.OS_TYPE
                         ].sysKeyDisplay(e.metaKey, e.ctrlKey, e.altKey)
 
+                    //input value: visible part
                     target.value = `${sysKeyDisplay}${key.toUpperCase()}`
-                    //target.dataset.hotkey = `${sysKey}:${key}` //TODO: chnage to {syskey: '', key: ''}
-                    //systemkey + key object in string
+
+                    //systemkey + key object in string: invisible part - actual setting
                     target.dataset.hotkey = JSON.stringify({
                         syskey: sysKey,
                         key: key,
                     })
 
-                    //TODO: test
+                    //TODO: this should be a part of the interface (set new hotkey function)
                     context.tabSwitchSettings.setShortcut(sysKey, key)
 
+                    //remember current value to allow to set it back in some cases
                     target.dataset.value = target.value
                     target.blur()
                 } else if (
@@ -44,6 +87,7 @@ function settingTabSwitchShortcut(context) {
                         context.OS_TYPE
                     ].allowedSysKeys.includes(key.toLowerCase())
                 ) {
+                    //allowed system key was pressed but there are no letter was pressed
                     target.value =
                         context.tabSwitchSettings[
                             context.OS_TYPE
@@ -60,7 +104,6 @@ function settingTabSwitchShortcut(context) {
                 e.preventDefault()
 
                 const target = e.target
-
                 const key = e.key
 
                 if (
@@ -76,6 +119,8 @@ function settingTabSwitchShortcut(context) {
                 }
             },
             onBlur: (e) => {
+                console.log('blur', e.target.dataset.hotkey)
+                //removes or sets the value. after on focus the value is empty
                 if (e.target.dataset.hotkey) {
                     e.target.value = e.target.dataset.value
                 } else {
@@ -98,6 +143,7 @@ function settingTabSwitchShortcut(context) {
                 inputRel.value = ''
                 inputRel.dataset.hotkey = ''
                 inputRel.dataset.value = ''
+                context.tabSwitchSettings.setShortcut('', '')
                 inputRel.blur()
             },
         },
@@ -173,4 +219,52 @@ function settingTabSwitchShortcut(context) {
             },
         },
     }
+
+    const controlElement = context.templateEngine(settings?.markup)
+
+    const tabSwitchInput = controlElement.querySelector(
+        '#pega-extension__tab-switch-hotkey'
+    )
+
+    //check if setting already exists
+    let shortcut = context.tabSwitchSettings.getShortcut()
+    console.log('existing shortcut', shortcut)
+
+    if (shortcut) {
+        //TODO: implement for win. for win it will be the same but just different expressions
+        const sysKeyToDisplay = context.tabSwitchSettings[
+            context.OS_TYPE
+        ].sysKeyDisplay(
+            shortcut.sysKey === 'Meta',
+            shortcut.sysKey === 'Ctrl',
+            shortcut.sysKey === 'Option'
+        )
+
+        //create separate function to display hotkey
+        tabSwitchInput.value = `${
+            sysKeyToDisplay.display
+        }${shortcut.key.toUpperCase()}`
+
+        tabSwitchInput.dataset.hotkey = JSON.stringify(shortcut)
+
+        tabSwitchInput.dataset.value = tabSwitchInput.value //to display the value correctly
+
+        console.log('init', tabSwitchInput.dataset.hotkey)
+    }
+
+    const controlActionBtn = tabSwitchInput.parentElement.querySelector(
+        'button[type="button"]'
+    )
+
+    tabSwitchInput.addEventListener('keydown', settings.handlers.onKeyDown)
+
+    tabSwitchInput.addEventListener('keyup', settings.handlers.onKeyUp)
+
+    tabSwitchInput.addEventListener('blur', settings.handlers.onBlur)
+
+    tabSwitchInput.addEventListener('focus', settings.handlers.onFocus)
+
+    controlActionBtn.addEventListener('click', settings.handlers.onClick)
+
+    return controlElement
 }

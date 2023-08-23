@@ -1,26 +1,42 @@
 let processedTabs = []
+let extensionSettingsCached = {}
 
-//меняет иконку расширения
+getExtensionSettings()
+
+//changes extension icon from active to not active and vice versa
 function setExtensionStatusIcon() {
     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
         const activeTab = tabs[0]
 
         chrome.storage.sync.get('settings').then((result) => {
-            const urls = result.settings.map((s) => s.url)
+            const settings = Array.isArray(result.settings)
+                ? result.settings
+                : []
 
-            for (const url of urls) {
-                if (activeTab.url.includes(url)) {
-                    chrome.action.setIcon({ path: '/assets/img/icon-38.png' })
-                } else {
-                    chrome.action.setIcon({
-                        path: '/assets/img/icon_grey-38.png',
-                    })
+            const urls = settings.map((s) => s.url)
+
+            if (urls.length === 0) {
+                chrome.action.setIcon({
+                    path: '/assets/img/icon_grey-38.png',
+                })
+            } else {
+                for (const url of urls) {
+                    if (activeTab.url.includes(url)) {
+                        chrome.action.setIcon({
+                            path: '/assets/img/icon-38.png',
+                        })
+                    } else {
+                        chrome.action.setIcon({
+                            path: '/assets/img/icon_grey-38.png',
+                        })
+                    }
                 }
             }
         })
     })
 }
 
+//decides what script to inject and when
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     setExtensionStatusIcon()
 
@@ -66,6 +82,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     */
 })
 
+//injects js into content page. used in content-checker.js
 function injectJavascript(tabId, jsFilesArr, callback) {
     chrome.scripting
         .executeScript({
@@ -104,6 +121,14 @@ function injectCSS(tabId) {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const tabId = sender.tab.id
 
+    //request for extension settings from content script
+    if (message.message === 'getSettings') {
+        let payload = getExtensionSettings()
+
+        sendResponse({
+            payload: payload,
+        })
+    }
     if (message.script) {
         injectJavascript(tabId, [`./build/content_scripts/${message.script}`])
     }
@@ -115,3 +140,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 //extension activeness indicator: switching extension icon depending on tab url
 chrome.tabs.onActivated.addListener(setExtensionStatusIcon)
+
+/* get cached settings and update cache with new settings from synced storage
+browser closes connection for sending message before gettings new data from 
+async storage hance returning previously cached data and update it in async way */
+function getExtensionSettings() {
+    //update settings cache
+    chrome.storage.sync
+        .get('settings')
+        .then((result) => {
+            extensionSettingsCached = result.settings
+        })
+        .catch((err) => console.error('Filed to get extension settings', err))
+
+    return extensionSettingsCached
+}
+
+//sync between browser should trigger settings refresh. not tested at all
+chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'sync') {
+        getExtensionSettings()
+    }
+})

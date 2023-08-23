@@ -1,3 +1,13 @@
+/* main assumption is that user will not change settings in different session while popup is open
+getSettings gets fresh extension settings on load 
+
+settins data model
+{
+    'tab-switch': {
+        os_type: {}
+    }
+}
+*/
 class Popup {
     constructor(htmlElement) {
         if (!(htmlElement instanceof HTMLElement)) {
@@ -99,45 +109,27 @@ class Popup {
             valMsg: 'Include Control, Option, or ⌘',
         },
         win: {},
-        mapSysKeyToNumber: (sysKey) => {
-            //TODO: update for windows
+        setShortcut: (sysKey, key) => {
             let result = ''
-            switch (sysKey) {
-                case 'Ctrl':
-                    //ctrl
-                    result = 1
-                    break
-                case 'Meta':
-                    //command
-                    result = 2
-                case 'Option':
-                    //option, alt
-                    result = 3
-                    break
+
+            if (sysKey && key) {
+                result = JSON.stringify({ sysKey, key })
+            } else if (!sysKey && !key) {
+                result = ''
             }
 
-            return result
-        },
-        mapNumberToSysKey: (sysKeyNumber) => {
-            //TODO: update for windows
-            let result = ''
-            switch (sysKeyNumber) {
-                case 1:
-                    result = 'Ctrl'
-                    break
-                case 2:
-                    result = this.IS_OS_TYPE_WIN ? '' : 'Meta'
-                    break
-                case 3:
-                    result = this.IS_OS_TYPE_WIN ? '' : 'Option'
-                    break
+            if (!this.settings['tab-switch']) {
+                this.settings['tab-switch'] = {}
             }
-        },
-        setShortcut: (sysKey, key) => {
-            localStorage.setItem('tab-switch', JSON.stringify({ sysKey, key }))
+
+            //update cached settings
+            this.settings['tab-switch'][this.OS_TYPE] = result
+
+            //update sync settings
+            chrome.storage.sync.set({ settings: this.settings })
         },
         getShortcut: () => {
-            return JSON.parse(localStorage.getItem('tab-switch') || null)
+            return JSON.parse(this.settings['tab-switch'][this.OS_TYPE] || null)
         },
     }
 
@@ -521,90 +513,9 @@ class Popup {
             case 'setting-tab-switch-shortcut':
                 //control to capture tab switch shortcut
                 //loads from external file, depends on this function
-                const tabSwitchSettingControlSettings =
-                    settingTabSwitchShortcut(this)
+                const tabSwitchSettingControl = settingTabSwitchShortcut(this)
 
-                const tabSwitchSettingControl = resultComponent.appendChild(
-                    this.templateEngine(tabSwitchSettingControlSettings?.markup)
-                )
-
-                const tabSwitchInput = tabSwitchSettingControl.querySelector(
-                    '#pega-extension__tab-switch-hotkey'
-                )
-
-                //check if setting already exists
-                let shortcut = this.tabSwitchSettings.getShortcut()
-                console.log('shortcut', shortcut)
-                //TODO: implement for win
-                const sysKeyToDisplay = this.tabSwitchSettings[
-                    this.OS_TYPE
-                ].sysKeyDisplay(
-                    shortcut.sysKey === 'Meta',
-                    shortcut.sysKey === 'Ctrl',
-                    shortcut.sysKey === 'Option'
-                )
-
-                tabSwitchInput.value = `${
-                    sysKeyToDisplay.display
-                }${shortcut.key.toUpperCase()}`
-
-                const controlActionBtn =
-                    tabSwitchInput.parentElement.querySelector(
-                        'button[type="button"]'
-                    )
-
-                /*
-                const tabSwitchInputValMsg = tabSwitchInput
-                    .closest('.setting-item-control')
-                    .querySelector('.control-msg-alert')
-                    */
-
-                //bind
-                tabSwitchSettingControlSettings.handlers.onKeyDown =
-                    tabSwitchSettingControlSettings.handlers.onKeyDown.bind(
-                        this
-                    )
-
-                tabSwitchInput.addEventListener(
-                    'keydown',
-                    tabSwitchSettingControlSettings.handlers.onKeyDown
-                )
-
-                //bind
-                tabSwitchSettingControlSettings.handlers.onKeyUp =
-                    tabSwitchSettingControlSettings.handlers.onKeyUp.bind(this)
-
-                tabSwitchInput.addEventListener(
-                    'keyup',
-                    tabSwitchSettingControlSettings.handlers.onKeyUp
-                )
-
-                //bind
-                tabSwitchSettingControlSettings.handlers.onBlur =
-                    tabSwitchSettingControlSettings.handlers.onBlur.bind(this)
-
-                tabSwitchInput.addEventListener(
-                    'blur',
-                    tabSwitchSettingControlSettings.handlers.onBlur
-                )
-
-                //bind
-                tabSwitchSettingControlSettings.handlers.onFocus =
-                    tabSwitchSettingControlSettings.handlers.onFocus.bind(this)
-
-                tabSwitchInput.addEventListener(
-                    'focus',
-                    tabSwitchSettingControlSettings.handlers.onFocus
-                )
-
-                //bind
-                tabSwitchSettingControlSettings.handlers.onClick =
-                    tabSwitchSettingControlSettings.handlers.onClick.bind(this)
-
-                controlActionBtn.addEventListener(
-                    'click',
-                    tabSwitchSettingControlSettings.handlers.onClick
-                )
+                resultComponent.appendChild(tabSwitchSettingControl)
                 break
             case 'header-nav-arrow-back':
                 //back arrow for header breadcrumbs (but may be used in other scenarios as well)
@@ -1050,9 +961,19 @@ class Popup {
     }
 }
 
+/*
 chrome.storage.sync.set({
-    settings: '',
+    settings: {
+        'tab-switch-settings': { 'meta-key': 'meta', 'os-type': 'mac' },
+    },
 })
+*/
+
+//chrome.storage.sync.set({ settings: {} })
+
+chrome.storage.sync
+    .get('settings')
+    .then((result) => console.log('settins result', result))
 //это только для теста было сделано, чтобы иметь хоть какие-то настройки
 /*
 chrome.storage.sync.set({
