@@ -125,10 +125,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.message === 'getSettings') {
         let payload = getExtensionSettings()
 
-        sendResponse({
-            payload: payload,
-        })
+        if (sendResponse) {
+            sendResponse({
+                payload: payload,
+            })
+        }
     }
+
     if (message.script) {
         injectJavascript(tabId, [`./build/content_scripts/${message.script}`])
     }
