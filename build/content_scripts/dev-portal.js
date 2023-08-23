@@ -34,11 +34,17 @@ s.onload = function () {
 if (typeof Tabs !== 'function') {
     window.Tabs = class {
         constructor() {
-            //пока реализовано только для dev студии
+            //implemented only for dev studio
             if (!document.querySelector('div.dev-studio')) {
-                console.log('!!!!!!!!! не дев студия')
                 return
             }
+
+            //get os type. try to get value from local storage first
+            let osType = navigator.userAgentData.platform
+            if (osType.toLowerCase().includes('mac')) {
+                osType = 'mac'
+            }
+            this.OS_TYPE = osType
 
             this._tabsInfo = {}
             this.TAB_CONTENT_SCAN_TIMOUT = 500
@@ -98,6 +104,34 @@ if (typeof Tabs !== 'function') {
             this.visited.setAll = this.visited.setAll.bind(this)
 
             this.addLogsToolbarItem() //add logs icon for tooter toolbar
+
+            this.getExtensionSettings()
+        }
+
+        //get extension settings. mainly set from popup and map to current object
+        getExtensionSettings() {
+            chrome.runtime.sendMessage(
+                { message: 'getSettings' },
+                (response) => {
+                    console.log('payload', response)
+
+                    if (response?.payload) {
+                        const settingsResponse =
+                            response.payload['tab-switch'] ?? null
+
+                        if (settingsResponse[this.OS_TYPE]) {
+                            this.tabSwitchSettings = JSON.parse(
+                                settingsResponse[this.OS_TYPE]
+                            )
+                        }
+
+                        console.log(
+                            'from background settings:::::',
+                            this.tabSwitchSettings
+                        )
+                    }
+                }
+            )
         }
 
         getCurrentOpenTabElement() {
@@ -125,12 +159,21 @@ if (typeof Tabs !== 'function') {
         }
 
         //копирует в клипборд, добавляет класс
-        makeElementTextCopiable(element, textToCopy, tooltip = 'Copy value') {
+        makeElementTextCopiable(
+            element,
+            textToCopy,
+            tooltip = 'Copy value',
+            isLeftmost = false
+        ) {
             if (element) {
-                element.classList.add('pega-extension__copy-value')
+                if (isLeftmost) {
+                    element.classList.add('pega-extension__copy-value-leftmost')
+                } else {
+                    element.classList.add('pega-extension__copy-value')
+                }
+
                 element.dataset.tooltip = tooltip
 
-                //функция копирования класса рула в клипборд
                 element.addEventListener('click', () => {
                     navigator.clipboard.writeText(textToCopy)
 
@@ -147,6 +190,36 @@ if (typeof Tabs !== 'function') {
                     }, 1500)
                 })
             }
+        }
+
+        //function to add refresh icon to the rule type window
+        addRefreshIcon(ruleType, id, clickHandler, headerElement) {
+            if (ruleType === 'Branch') {
+            }
+
+            const actionBtnsWrapper = headerElement
+                .querySelector('button[data-click*="doClose"]')
+                ?.closest('div.content')
+
+            const refreshWrapper = document.createElement('div')
+            refreshWrapper.id = id
+
+            refreshWrapper.className =
+                'content-item flex flex-row hotkey-ruleform-refresh'
+
+            const refreshIconWrapper = document.createElement('div')
+            refreshIconWrapper.classList.add('content-inner')
+            const refreshIcon = document.createElement('i')
+            refreshIcon.className = 'icons pi pi-refresh'
+            refreshIcon.setAttribute('onclick', 'pd(event)')
+            refreshIcon.dataset.click = clickHandler
+
+            refreshIconWrapper.appendChild(refreshIcon)
+            refreshWrapper.appendChild(refreshIconWrapper)
+            actionBtnsWrapper.insertBefore(
+                refreshWrapper,
+                actionBtnsWrapper.firstChild
+            )
         }
 
         //инициализирует список таб для переключения (список visited)
@@ -223,24 +296,50 @@ if (typeof Tabs !== 'function') {
 
         tabsInfo = {}
 
-        //интерфейс взаимодействия с _tabsInfo
-        //получить инфу по табе
+        //API to work with tabs с _tabsInfo
+        //get all info about tab
         getTabInfo(tabId) {}
-        //флашнуть всю инфу по табе
+        //flush all tab info
         flushTabInfo(tabId) {}
 
         onTabSwitch(e) {
-            //свитчит табы в дев студии
-            if (e.metaKey && e.key === 'e') {
+            //switches tabs in dev studio
+            if (!this.tabSwitchSettings) return
+
+            const settings = this.tabSwitchSettings
+
+            console.log('os type', this.OS_TYPE)
+            console.log('obj', e)
+
+            console.log(
+                'expression',
+                this.OS_TYPE === 'mac' &&
+                    settings.sysKey === 'Meta' &&
+                    e.key === settings.key
+            )
+
+            if (
+                this.OS_TYPE === 'mac' &&
+                ((settings.sysKey === 'Meta' && e.metaKey) ||
+                    settings.sysKey === 'Alt' ||
+                    settings.sysKey === 'Control') &&
+                e.key === settings.key
+            ) {
                 e.preventDefault()
 
                 const prevTabIndex = this.visited.length() - 2
 
+                //console.log('prev tab index', prevTabIndex)
+
                 if (prevTabIndex >= 0) {
                     const prevTab = this.visited.getAll()[prevTabIndex]
 
+                    //console.log('prevTab', prevTab)
+
                     this.tabsRef.querySelector(`li#${prevTab}`)?.click()
                 }
+
+                //console.log('should be switch')
             }
         }
 
@@ -360,7 +459,8 @@ if (typeof Tabs !== 'function') {
                 this.makeElementTextCopiable(
                     classLabelElement,
                     className,
-                    'Copy class name'
+                    'Copy class name',
+                    true
                 )
 
                 //Purpose для decision table
@@ -394,10 +494,12 @@ if (typeof Tabs !== 'function') {
                     ?.closest('div.content-item')
                     .querySelector('label.field-caption')
 
+                //if class name not applicable for the rule then id will be the leftmost
                 this.makeElementTextCopiable(
                     ruleNameLabelElement,
                     ruleName,
-                    'Copy rule name'
+                    'Copy rule name',
+                    className ? false : true
                 )
 
                 const rulesetElement = innerHeader.querySelector(
@@ -442,12 +544,12 @@ if (typeof Tabs !== 'function') {
 
                 this._tabsInfo[tabId].info = tabInfo
 
-                //подготовка к добавлению кастомных иконок
+                //find parent element where to place custom icons
                 const ruleLabelAndType =
                     ruleLabelElement?.closest('div.content-item')?.parentElement
 
                 if (ruleLabelAndType) {
-                    //функция для добавления иконки с копируемым текстом
+                    //function for adding icon with click action
                     const addCustomAcitonIcon = (
                         infoValue,
                         tooltipText,
@@ -456,10 +558,15 @@ if (typeof Tabs !== 'function') {
                     ) => {
                         const wrapperDiv = document.createElement('div')
                         wrapperDiv.classList.add('content-item')
+                        wrapperDiv.classList.add(
+                            'pega-extension__copy-value-for-icon'
+                        )
 
                         const icon = document.createElement('img')
                         icon.setAttribute('id', elementId)
-                        icon.classList.add('pega-extension__copy-value')
+                        icon.classList.add(
+                            'pega-extension__copy-value-for-icon'
+                        )
                         icon.style.height = '1.23em' //sometimes there is a lag between css inject and html inject
                         icon.src = chrome.runtime.getURL(iconPath)
 
@@ -473,7 +580,7 @@ if (typeof Tabs !== 'function') {
 
                         ruleLabelAndType.appendChild(wrapperDiv)
                     }
-                    //добавление pzInsKey
+                    //adding pzInsKey icon
                     const elementWithKey =
                         iframeDoc.querySelector('textarea#PRXML')
 
@@ -487,9 +594,13 @@ if (typeof Tabs !== 'function') {
                         const tempElement = document.createElement('div')
                         tempElement.innerHTML = elementWithKey.innerText.trim()
 
-                        const pzInsKey = tempElement
-                            .querySelector('pzDocumentKey')
-                            ?.innerText.trim()
+                        //BUG: sometimes it causes reload till timeout constant. открыта таба создания Association рула, пытаюсь перключиться на предыдущую с помощью таб свитча
+                        console.log('elementwithkey', tempElement)
+
+                        const pzInsKey = (
+                            tempElement.querySelector('pzDocumentKey') ||
+                            tempElement.querySelector('pzinskey')
+                        )?.innerText.trim()
 
                         if (pzInsKey) {
                             addCustomAcitonIcon(
@@ -499,6 +610,36 @@ if (typeof Tabs !== 'function') {
                                 './assets/img/key.png'
                             )
                         }
+
+                        /* for some operations like rule checkout tab content 
+                        markup regenerated and it should trigger markup parsing.
+                        checking for element with concrete element and want to avoid 
+                        cases when observer will be attached to a tab without custom functionality.
+                        no custom functionality == I don't want to watch for this tab state at all.
+                        */
+                        const tabContentMutationObserver = new MutationObserver(
+                            () => {
+                                if (
+                                    !iframeDoc.querySelector(
+                                        '#pega-extension__rule-info-pzinskey'
+                                    )
+                                ) {
+                                    const tabToRework =
+                                        this.tabsRef?.querySelector(
+                                            `li#${tabId}`
+                                        )
+
+                                    tabContentMutationObserver.disconnect()
+
+                                    this.setCurrent(tabToRework)
+                                }
+                            }
+                        )
+
+                        tabContentMutationObserver.observe(iframeDoc, {
+                            subtree: true,
+                            childList: true,
+                        })
                     }
 
                     //add tag icon
@@ -522,10 +663,37 @@ if (typeof Tabs !== 'function') {
                             'pega-extension__rule-info-sig',
                             './assets/img/tag-white.png'
                         )
+
+                        //add refresh icons
+                        if (tabInfo.ruleType === 'Branch') {
+                            const id = 'pega-extension__branch-icon-refresh'
+                            const clickHandler =
+                                '[["refresh", ["currentharness","", "pxLPRefreshActivity", "{\\"sp\\":\\"=\\",\\"dp\\":\\"\\"}", "", "pxLPRefreshTransform,{\\"sp\\":\\"\\",\\"dp\\":\\"\\"}",":event","","pyLanding"]]]'
+
+                            if (!innerHeader.querySelector(`#${id}`)) {
+                                this.addRefreshIcon(
+                                    tabInfo.ruleType,
+                                    id,
+                                    clickHandler,
+                                    innerHeader
+                                )
+                            }
+                        } else if (tabInfo.ruleType === 'Application') {
+                            const id = 'pega-extension__app-icon-refresh'
+                            const clickHandler =
+                                '[["runScript", ["onBeforeExecuteActionWrapper(\\"REFRESH\\")"]],["refresh", ["currentharness","", "pzRuleFormToolbarRefresh", "{\\"sp\\":\\"=\\",\\"dp\\":\\"\\"}", "", ",{\\"sp\\":\\"\\",\\"dp\\":\\"\\"}",":event","","RH_1"]]]'
+
+                            if (!innerHeader.querySelector(`#${id}`)) {
+                                this.addRefreshIcon(
+                                    tabInfo.ruleType,
+                                    id,
+                                    clickHandler,
+                                    innerHeader
+                                )
+                            }
+                        }
                     }
                 }
-
-                //добавление лейбла SIG
             } else if (tabContentElement) {
                 //for home page - она не в iframe
                 const ruleLabel = document

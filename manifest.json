@@ -1,7 +1,7 @@
 {
     "name": "Pega Extension",
     "description": "Extends Pega functionality",
-    "version": "0.0.1",
+    "version": "0.0.0.1",
     "manifest_version": 3,
     "icons": {
         "16": "assets/img/icon.png",
@@ -39,6 +39,7 @@
                 "assets/img/tag-white.png",
                 "assets/img/key.png",
                 "assets/img/id-card.png",
+                "assets/img/close.png",
                 "build/styles.css"
             ],
             "matches": ["https://*/*", "http://*/*"]

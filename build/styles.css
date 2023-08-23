@@ -20,11 +20,15 @@
     cursor: pointer;
 }
 
-.pega-extension__copy-value {
+.pega-extension__copy-value,
+.pega-extension__copy-value-leftmost,
+.pega-extension__copy-value-for-icon {
     cursor: pointer;
 }
 
-.pega-extension__copy-value::before {
+.pega-extension__copy-value::before,
+.pega-extension__copy-value-leftmost::before,
+.pega-extension__copy-value-for-icon::before {
     content: attr(data-tooltip);
     position: absolute;
     display: none;
@@ -33,7 +37,6 @@
     color: #fff;
     text-align: center;
     padding: 5px 8px;
-    transform: translate(-40%, 2.3em);
     max-width: 120px;
     font-size: 12px;
     z-index: 1000;
@@ -41,7 +44,22 @@
     font-weight: 400;
 }
 
-.pega-extension__copy-value:hover::before {
+.pega-extension__copy-value::before {
+    transform: translate(-40%, 1.5em);
+}
+
+/* touches edge of the frame */
+.pega-extension__copy-value-leftmost::before {
+    transform: translate(-6%, 1.5em);
+}
+
+.pega-extension__copy-value-for-icon::before {
+    transform: translate(-40%, 2.2em);
+}
+
+.pega-extension__copy-value:hover::before,
+.pega-extension__copy-value-leftmost:hover::before,
+.pega-extension__copy-value-for-icon:hover::before {
     display: block;
 }
 
@@ -110,7 +128,7 @@
 .layout-noheader-ruleform_header:hover #pega-extension__rule-info-pzinskey,
 .layout-noheader-workarea_header:hover #pega-extension__rule-info-pzinskey,
 .eventElementData:hover .pega-extension__tracer-event-sql-inserts-icon-copy {
-    animation: fadeIn 0s 200ms forwards;
+    animation: fadeIn 0s 300ms forwards;
     visibility: hidden;
 }
 

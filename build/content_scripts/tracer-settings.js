@@ -1,9 +1,9 @@
 //trace event's popup
 if (document.readyState !== 'loading') {
-    extentRulesetsSets()
+    extendRulesetsSets()
 } else {
     document.addEventListener('DOMContentLoaded', () => {
-        extentRulesetsSets()
+        extendRulesetsSets()
     })
 }
 
@@ -138,8 +138,8 @@ function appednDeselectAllEvenTypes() {
     })
 }
 
-//main functino to add new buttons
-function extentRulesetsSets() {
+//main function to add new buttons
+function extendRulesetsSets() {
     appendDeselectOOTBRSBtn()
 
     appednSelectAllEvenTypes()
