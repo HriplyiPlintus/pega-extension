@@ -34,11 +34,17 @@ s.onload = function () {
 if (typeof Tabs !== 'function') {
     window.Tabs = class {
         constructor() {
-            //пока реализовано только для dev студии
+            //implemented only for dev studio
             if (!document.querySelector('div.dev-studio')) {
-                console.log('!!!!!!!!! не дев студия')
                 return
             }
+
+            //get os type. try to get value from local storage first
+            let osType = navigator.userAgentData.platform
+            if (osType.toLowerCase().includes('mac')) {
+                osType = 'mac'
+            }
+            this.OS_TYPE = osType
 
             this._tabsInfo = {}
             this.TAB_CONTENT_SCAN_TIMOUT = 500
@@ -98,6 +104,34 @@ if (typeof Tabs !== 'function') {
             this.visited.setAll = this.visited.setAll.bind(this)
 
             this.addLogsToolbarItem() //add logs icon for tooter toolbar
+
+            this.getExtensionSettings()
+        }
+
+        //get extension settings. mainly set from popup and map to current object
+        getExtensionSettings() {
+            chrome.runtime.sendMessage(
+                { message: 'getSettings' },
+                (response) => {
+                    console.log('payload', response)
+
+                    if (response?.payload) {
+                        const settingsResponse =
+                            response.payload['tab-switch'] ?? null
+
+                        if (settingsResponse[this.OS_TYPE]) {
+                            this.tabSwitchSettings = JSON.parse(
+                                settingsResponse[this.OS_TYPE]
+                            )
+                        }
+
+                        console.log(
+                            'from background settings:::::',
+                            this.tabSwitchSettings
+                        )
+                    }
+                }
+            )
         }
 
         getCurrentOpenTabElement() {
@@ -125,10 +159,15 @@ if (typeof Tabs !== 'function') {
         }
 
         //копирует в клипборд, добавляет класс
-        makeElementTextCopiable(element, textToCopy, tooltip = 'Copy value') {
+        makeElementTextCopiable(
+            element,
+            textToCopy,
+            tooltip = 'Copy value',
+            isLeftmost = false
+        ) {
             if (element) {
-                if (tooltip.includes('class name')) {
-                    element.classList.add('pega-extension__copy-value-class')
+                if (isLeftmost) {
+                    element.classList.add('pega-extension__copy-value-leftmost')
                 } else {
                     element.classList.add('pega-extension__copy-value')
                 }
@@ -257,24 +296,50 @@ if (typeof Tabs !== 'function') {
 
         tabsInfo = {}
 
-        //интерфейс взаимодействия с _tabsInfo
-        //получить инфу по табе
+        //API to work with tabs с _tabsInfo
+        //get all info about tab
         getTabInfo(tabId) {}
-        //флашнуть всю инфу по табе
+        //flush all tab info
         flushTabInfo(tabId) {}
 
         onTabSwitch(e) {
-            //свитчит табы в дев студии
-            if (e.metaKey && e.key === 'e') {
+            //switches tabs in dev studio
+            if (!this.tabSwitchSettings) return
+
+            const settings = this.tabSwitchSettings
+
+            console.log('os type', this.OS_TYPE)
+            console.log('obj', e)
+
+            console.log(
+                'expression',
+                this.OS_TYPE === 'mac' &&
+                    settings.sysKey === 'Meta' &&
+                    e.key === settings.key
+            )
+
+            if (
+                this.OS_TYPE === 'mac' &&
+                ((settings.sysKey === 'Meta' && e.metaKey) ||
+                    settings.sysKey === 'Alt' ||
+                    settings.sysKey === 'Control') &&
+                e.key === settings.key
+            ) {
                 e.preventDefault()
 
                 const prevTabIndex = this.visited.length() - 2
 
+                //console.log('prev tab index', prevTabIndex)
+
                 if (prevTabIndex >= 0) {
                     const prevTab = this.visited.getAll()[prevTabIndex]
 
+                    //console.log('prevTab', prevTab)
+
                     this.tabsRef.querySelector(`li#${prevTab}`)?.click()
                 }
+
+                //console.log('should be switch')
             }
         }
 
@@ -394,7 +459,8 @@ if (typeof Tabs !== 'function') {
                 this.makeElementTextCopiable(
                     classLabelElement,
                     className,
-                    'Copy class name'
+                    'Copy class name',
+                    true
                 )
 
                 //Purpose для decision table
@@ -428,10 +494,12 @@ if (typeof Tabs !== 'function') {
                     ?.closest('div.content-item')
                     .querySelector('label.field-caption')
 
+                //if class name not applicable for the rule then id will be the leftmost
                 this.makeElementTextCopiable(
                     ruleNameLabelElement,
                     ruleName,
-                    'Copy rule name'
+                    'Copy rule name',
+                    className ? false : true
                 )
 
                 const rulesetElement = innerHeader.querySelector(
@@ -526,9 +594,13 @@ if (typeof Tabs !== 'function') {
                         const tempElement = document.createElement('div')
                         tempElement.innerHTML = elementWithKey.innerText.trim()
 
-                        const pzInsKey = tempElement
-                            .querySelector('pzDocumentKey')
-                            ?.innerText.trim()
+                        //BUG: sometimes it causes reload till timeout constant. открыта таба создания Association рула, пытаюсь перключиться на предыдущую с помощью таб свитча
+                        console.log('elementwithkey', tempElement)
+
+                        const pzInsKey = (
+                            tempElement.querySelector('pzDocumentKey') ||
+                            tempElement.querySelector('pzinskey')
+                        )?.innerText.trim()
 
                         if (pzInsKey) {
                             addCustomAcitonIcon(

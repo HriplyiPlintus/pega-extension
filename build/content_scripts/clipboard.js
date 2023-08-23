@@ -6,6 +6,7 @@ const pagesToMove = [
     'pyWorkCover',
     'newAssignPage',
     'pyDisplayHarness',
+    'RH_1',
 ].reverse()
 
 const movePagesToTop = (pageName) => {
