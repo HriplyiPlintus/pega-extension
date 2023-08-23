@@ -127,6 +127,10 @@ class Popup {
 
             //update sync settings
             chrome.storage.sync.set({ settings: this.settings })
+
+            /* TODO: make API to update settigns
+            this message will update cached settings in background worker */
+            chrome.runtime.sendMessage({ message: 'getSettings' })
         },
         getShortcut: () => {
             return JSON.parse(this.settings['tab-switch'][this.OS_TYPE] || null)
