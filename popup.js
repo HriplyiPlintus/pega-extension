@@ -125,16 +125,19 @@ class Popup {
             //update cached settings
             this.settings['tab-switch'][this.OS_TYPE] = result
 
-            //update sync settings
-            chrome.storage.sync.set({ settings: this.settings })
-
-            /* TODO: make API to update settigns
-            this message will update cached settings in background worker */
-            chrome.runtime.sendMessage({ message: 'getSettings' })
+            this.setExtensionSettings()
         },
         getShortcut: () => {
             return JSON.parse(this.settings['tab-switch'][this.OS_TYPE] || null)
         },
+    }
+
+    //refreshes extension settings in sync storage. all updates should happen from this API
+    setExtensionSettings() {
+        chrome.storage.sync.set({ settings: this.settings })
+
+        //this message will update cached settings in background worker
+        chrome.runtime.sendMessage({ message: 'getSettings' })
     }
 
     //get settings from storage and set to the settings on context

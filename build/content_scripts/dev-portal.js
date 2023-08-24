@@ -113,22 +113,18 @@ if (typeof Tabs !== 'function') {
             chrome.runtime.sendMessage(
                 { message: 'getSettings' },
                 (response) => {
-                    console.log('payload', response)
-
                     if (response?.payload) {
                         const settingsResponse =
                             response.payload['tab-switch'] ?? null
 
-                        if (settingsResponse[this.OS_TYPE]) {
+                        if (
+                            settingsResponse &&
+                            settingsResponse[this.OS_TYPE]
+                        ) {
                             this.tabSwitchSettings = JSON.parse(
                                 settingsResponse[this.OS_TYPE]
                             )
                         }
-
-                        console.log(
-                            'from background settings:::::',
-                            this.tabSwitchSettings
-                        )
                     }
                 }
             )
