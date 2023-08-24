@@ -35,5 +35,6 @@ To be implemented:
 -   extension settings
 -   allow to turn off features
 -   extension icon view update on allowed tabs
+-   tab swtich sometimes does not work after page refresh untill other pega tabs loaded
 
 Extension settings synced between browsers
