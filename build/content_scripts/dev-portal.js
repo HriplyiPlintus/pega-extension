@@ -1,15 +1,8 @@
-console.log('hi there!')
-
 /*
-TODO: посмотреть existingTimers и как чистить интервалы в добавлении sig 
-и с какой частотой запускается добавление sig
-*/
+_tabIframeLoadedCallback - parses pega tab
+getCurrentOpenTabElement - retrieves node element of opened tab
 
-/*
-_tabIframeLoadedCallback - парсит пега табу
-getCurrentOpenTabElement - достает нод элемент открытой табы
-
-//это для тестов только. прокидываение скрипта в страницу
+//only for tests, injects js file
 let s = document.createElement('script')
 s.src = chrome.runtime.getURL('assets/war/dev-portal.js')
 s.onload = function () {
@@ -20,15 +13,14 @@ s.onload = function () {
 */
 
 /*
-    visited - интерфейс взаимодействия с посещенными табами 
-    массив айдишников таб. причем, если пользователь закрывает табу, 
-    то она удаляется из массива, чтобы нельзя было больше перейти на нее по истории
+    visited - interface to work with visited tabs. contains the list of visited tabs
+    if the user closes one of the tabs it will be removed from all the places of this list
 
-    тип объявлен в глобальном объекте window, потому что при рефреше пега табы, 
-    скрипт пытается отработать заново. будто это какой-то хитрый рефреш стейта
+    type declared in global object window because on pega tab refresh
+    script attempts to run again
 
-    clearInterval(tabId) - очищает интервал и удаляет id интервала из объекта _tabsInfo
-    intervalId из _tabsInfo используется в setCurrentTab, чтобы не запускать механизм повторно
+    clearInterval(tabId) - clears interval and removes interval id from _tabsInfo
+    intervalId from _tabsInfo used in setCurrentTab, to avoid start processing again
 */
 
 if (typeof Tabs !== 'function') {
@@ -65,11 +57,11 @@ if (typeof Tabs !== 'function') {
             this.getCurrent = this.getCurrent.bind(this)
             this.getPrevious = this.getPrevious.bind(this)
 
-            //клики по табам
+            //tabs clicks
             this.tabsListClickHandler = this.tabsListClickHandler.bind(this)
             this.tabsRef.addEventListener('click', this.tabsListClickHandler)
 
-            //обработка клика по табе средней клавишей мыши
+            //handling middle click
             this.tabsListMiddleClickHandler =
                 this.tabsListMiddleClickHandler.bind(this)
             this.tabsRef.addEventListener(
@@ -77,7 +69,7 @@ if (typeof Tabs !== 'function') {
                 this.tabsListMiddleClickHandler
             )
 
-            //делаю все открытые табы сразу draggable
+            //makes all opened tabs draggable
             for (const t of this.tabsRef.querySelectorAll('li[role="tab"]')) {
                 t?.setAttribute('draggable', true)
             }
@@ -154,7 +146,7 @@ if (typeof Tabs !== 'function') {
             this._tabsInfo[tabId].intervalId = undefined
         }
 
-        //копирует в клипборд, добавляет класс
+        //copies to clipboard, adds css class
         makeElementTextCopiable(
             element,
             textToCopy,
@@ -218,35 +210,35 @@ if (typeof Tabs !== 'function') {
             )
         }
 
-        //инициализирует список таб для переключения (список visited)
-        //TODO: перенести в эту функцию часть из конструктора
+        //initializes the list of tabs for switching
+        //TODO: move to this function part from constructor
         initVisitedTabs() {
-            /* иногда в списке посещенных бывает только текущая таба например, после того,
-            как браузурная таба открывается заново без релогина или просто рефреш браузерной табы */
-            //список старых таб из хранилища, дедублицированные и отсортированные
-            const visitedRaw = this.visited.getAll() //список посещенных таб до рефреша в оригинальном виде
-            const visitedTabsArr = [...new Set(visitedRaw)].sort() //дедублицированный список таб, посещенных до рефреша
+            //contains the list of previously opened tabs from storage, deduplicated and sorted
+            /* sometimes the list of visited tabs will have only current tab, 
+            it happens after browser tab refresh */
+            const visitedRaw = this.visited.getAll() //the lsit of visited tabs before refresh
+            const visitedTabsArr = [...new Set(visitedRaw)].sort() //deduplicated list of tabs visited before refresh
 
-            //список всех открытых таб
+            //list of all opened tabs
             const newTabsRaw = this.getCurrentTabIdsArr()
 
-            let newTabsArr = [...new Set(newTabsRaw.map((obj) => obj))].sort() //список таб дедублицированный
+            let newTabsArr = [...new Set(newTabsRaw.map((obj) => obj))].sort() //deduplicated list of tabs
 
             if (
                 newTabsArr.length !== visitedTabsArr.length ||
                 JSON.stringify(newTabsArr) !== JSON.stringify(visitedTabsArr)
             ) {
-                //если списки посещенных и тукущих не совпадают
-                this.visited.setAll(newTabsRaw) //если же старый список не относится к текущим табам, применяем список текущих таб
+                //if the of visisted is not the same as current
+                this.visited.setAll(newTabsRaw)
             } else {
-                this.visited.setAll(visitedRaw) //перекладываем старый список в новый
+                //replace old list with the new one
+                this.visited.setAll(visitedRaw)
             }
 
-            this.setCurrent(this.getCurrentOpenTabElement()) //инициализируем открытую табу
+            this.setCurrent(this.getCurrentOpenTabElement()) //initializes opened tab
         }
 
-        //интерфейс взаимодействия с visited; TODO: для getAll и length нужно хранить в памяти, чтобы не обрщтаься в local storage всегда
-        /* данные хранятся в visited в sessionStorage, взаимодействие происходит через интерфейсные функции */
+        //data stored in visited attribute in sessionStorage, all interactions should be done using this API
         visited = {
             push: (tabId) => {
                 const visited = this.visited.getAll()
@@ -258,7 +250,7 @@ if (typeof Tabs !== 'function') {
                 )
             },
             getAll: () => {
-                //возвращает массив + обрабатывается ситуация с невалидным json.
+                //returns array of visited tabs
                 let visitedString = window.sessionStorage.getItem('visited')
                 visitedString =
                     visitedString?.trim() === '' ? null : visitedString
@@ -292,7 +284,7 @@ if (typeof Tabs !== 'function') {
 
         tabsInfo = {}
 
-        //API to work with tabs с _tabsInfo
+        //API to work with tabs with _tabsInfo
         //get all info about tab
         getTabInfo(tabId) {}
         //flush all tab info
@@ -340,7 +332,7 @@ if (typeof Tabs !== 'function') {
         }
 
         setCurrent(tab) {
-            tab?.setAttribute('draggable', true) //делает табу draggable
+            tab?.setAttribute('draggable', true) //makes tab draggable
 
             //actualize list of visited tabs on each attempt of setting current
             const currentTabIdsArr = this.getCurrentTabIdsArr()
@@ -351,69 +343,70 @@ if (typeof Tabs !== 'function') {
                 }
             }
 
-            //добавить, если последняя открытая таба отличается от той, которую хотят добавить или пока таб не было
+            //add if the last opened tab is not the same as new one or there are no tabs yes
             if (
                 this.visited.currentTab !== tab.id ||
                 this.visited.length() === 0
             ) {
-                this.visited.push(tab.id) //добавляет в стек посещенных таб
+                this.visited.push(tab.id)
                 this.visited.currentTab = tab.id
             }
 
-            //проверяем, есть ли найстройки для табы
+            //check if setting for the tab already exists
             if (this._tabsInfo[tab.id]?.intervalId) return
 
-            //добавлем настройку таймаута
+            //add timeout setting
             this._tabsInfo[tab.id] = {
                 loadingTimeout: this.TAB_CONTENT_LOADING_TIMEOUT,
             }
 
-            //раз в TAB_CONTENT_SCAN_TIMOUT будет пытаться достать данные из табы
+            //once in TAB_CONTENT_SCAN_TIMOUT tries to parse pega tab
             const intervalId = setInterval(
                 this._iframeLoaded(tab.id),
                 this.TAB_CONTENT_SCAN_TIMOUT
             )
 
-            this._tabsInfo[tab.id].intervalId = intervalId //таймаут на загрузку. после этого попыток загрузиться больше не будет
+            //loading timeout
+            this._tabsInfo[tab.id].intervalId = intervalId
         }
 
-        //достает всю инфу из табы пеги == парсит табу
+        //parses pega tab
         _tabIframeLoadedCallback(iframeDoc, tabId, tabContentElement) {
             if (iframeDoc) {
-                //TODO: пробую ловить свитч табы из iframe
+                //TODO: try to catch tab swtich from iframe
                 iframeDoc.body.addEventListener('keydown', this.onTabSwitch)
 
                 let innerHeader =
                     iframeDoc.querySelector(
                         '.layout-noheader-ruleform_header'
                     ) ||
-                    iframeDoc.querySelector('.layout-noheader-workarea_header') //это для бранча
+                    iframeDoc.querySelector('.layout-noheader-workarea_header') //for branch
 
                 if (!innerHeader) {
                     console.debug('not a regular tab, check manually', tabId)
                     return
                 } else {
-                    //если наконец нашли шапку табы, прекращаем опрашивать табу
+                    //stop processing if tab header found
                     this.clearInterval(tabId)
                 }
 
-                //все ниже относится пока только к обычным рулам типа активити
+                //all below belongs to common rules like activity
                 const ruleTypeName = (
                     innerHeader.querySelector(
                         '[data-ui-meta*="pyObjClassLabel"] .workarea_header_titles'
                     ) ||
-                    //это для бранча
+                    //for branch
                     innerHeader.querySelector(
                         'div.item-1 span.workarea_header_titles'
                     )
                 )?.innerText.replace(/:\s*$/, '')
 
-                //вообще, для ruleTypeName == Application
+                //for ruleTypeName == Application
                 const branchesCount = innerHeader.querySelectorAll(
                     'table[pl_prop=".pyBranchList"] tr[oaargs]'
                 ).length
 
-                //это только для бранча
+                //only for branch
                 const rulesCount = iframeDoc.querySelectorAll(
                     'table[pl_prop*="D_pzBranchContent"]>tbody>tr.oddRow, tr.evenRow'
                 ).length
@@ -422,7 +415,7 @@ if (typeof Tabs !== 'function') {
                     innerHeader.querySelector(
                         'span .workarea_header_highlight'
                     ) ||
-                    //это для бранча
+                    //for branch
                     innerHeader.querySelector(
                         'div.item-2 span.workarea_header_titles'
                     )
@@ -442,10 +435,10 @@ if (typeof Tabs !== 'function') {
                     ?.querySelector('a')
                     ?.innerText.trim()
 
-                //добавление функции копирования класс рула в клипборд TODO: убрать в отельную функцию?
+                //adds functionality to copy class name on click
                 const classLabelElement = classElements?.querySelector('label')
 
-                //добавление стилей в iframe
+                //injecting styles to iframe
                 let cssLink = document.createElement('link')
                 cssLink.href = chrome.runtime.getURL('build/styles.css')
                 cssLink.rel = 'stylesheet'
@@ -459,7 +452,7 @@ if (typeof Tabs !== 'function') {
                     true
                 )
 
-                //Purpose для decision table
+                //Purpose for decision table
                 const ruleNameElement =
                     innerHeader.querySelector(
                         'div.content-item div.content-item span[title*="Name"]'
@@ -471,7 +464,7 @@ if (typeof Tabs !== 'function') {
                         'div.content-item div.content-item span[title*="Decision"]'
                     )
 
-                //для некоторых рулов имя формируется из нескольких составляющих через разделитель
+                //for some of the rules the name generates from multiple parts
                 const nameSpanElements =
                     ruleNameElement?.parentElement.querySelectorAll('span')
 
@@ -485,7 +478,7 @@ if (typeof Tabs !== 'function') {
                     ruleName = ruleName.trim()
                 }
 
-                //добавление копируемости по клику
+                //adds functionality to copy text on click
                 const ruleNameLabelElement = ruleNameElement
                     ?.closest('div.content-item')
                     .querySelector('label.field-caption')
@@ -511,7 +504,7 @@ if (typeof Tabs !== 'function') {
                 const branchName = rulesetData[2] ?? undefined
                 const rulesetName = rulesetData[0]?.split(':')[0]
 
-                //добавление кликабельности для рулсета (сделано с версией, TODO: добавить конфигурируемость через настройки)
+                //adds ruleset name copy option functionality
                 if (rulesetName) {
                     const rulesetNameElement = rulesetElement
                         .closest('.content-sub_section')
@@ -590,7 +583,8 @@ if (typeof Tabs !== 'function') {
                         const tempElement = document.createElement('div')
                         tempElement.innerHTML = elementWithKey.innerText.trim()
 
-                        //BUG: sometimes it causes reload till timeout constant. открыта таба создания Association рула, пытаюсь перключиться на предыдущую с помощью таб свитча
+                        /* BUG: sometimes it causes reload till timeout
+                        Association rule creation tab opened, trying to switch to the previous tab*/
                         console.log('elementwithkey', tempElement)
 
                         const pzInsKey = (
@@ -691,7 +685,7 @@ if (typeof Tabs !== 'function') {
                     }
                 }
             } else if (tabContentElement) {
-                //for home page - она не в iframe
+                //for home page - it's not in iframe
                 const ruleLabel = document
                     .querySelector('li[role="tab"] .textIn')
                     .innerText.trim()
@@ -713,12 +707,12 @@ if (typeof Tabs !== 'function') {
                     !introducedByMeList.length ||
                     !introducedByTeamList.length
                 ) {
-                    //контент грузится асинхронно, нужно попытаться попозже
+                    //content loads in async way, need to make a try later
                     return
                 }
 
                 this.clearInterval(tabId)
-                //clearInterval(this._tabsInfo[tabId].intervalId) //TODO: this should be refactored. вызывается из 2 веток
+                //clearInterval(this._tabsInfo[tabId].intervalId) //TODO: this should be refactored. executed from 2 places
                 /* 
                 {
                     sever: {
@@ -758,12 +752,12 @@ if (typeof Tabs !== 'function') {
             }
         }
 
-        //ждет загрузки iframe и вызывает коллбек
+        //waits for iframe load and executes callback
         _iframeLoaded(tabId) {
             return function () {
-                //уменьшаем количество попыток
+                //decrement the number of attempts
                 if (
-                    //после рефреша табы все объекты обнуляются, а некоторые таймеры оказываются в промежуточном состоянии
+                    //after the update, all objects are deleted, but the timers may be in an intermediate state
                     !this._tabsInfo[tabId] ||
                     this._tabsInfo[tabId].loadingTimeout === undefined
                 ) {
@@ -784,7 +778,7 @@ if (typeof Tabs !== 'function') {
                     })[existingTimers.length - 1].timerId
 
                     for (let i = 1; i < maxTimerId * 10; i++) {
-                        //проверка, что id нет в списке с табами
+                        //check if id is not in the list of tabs
                         const etIndex = existingTimers.findIndex(
                             (et) => et.timerId === i
                         )
@@ -811,17 +805,16 @@ if (typeof Tabs !== 'function') {
                 this._tabsInfo[tabId].loadingTimeout -=
                     this.TAB_CONTENT_SCAN_TIMOUT
 
-                //очищаем интервал
+                //clear interval
                 if (this._tabsInfo[tabId].loadingTimeout < 0) {
-                    //clearInterval(this._tabsInfo[tabId].intervalId)
                     this.clearInterval(tabId)
                 }
 
-                //тут пытаемся вытащить iframe, потому что для всех, кроме home информация лежит в iframe
+                //try to get iframe far all tabs but some exceptions exist e.g. home page
                 if (tabId) {
                     const iframe = document.querySelector(
                         `div.tabContent .iframe-wrapper[aria-labelledby="${tabId}"] iframe`
-                    ) //TODO есть такой же кусок, нужно бы поместить в отдельную функцию
+                    ) //TODO: repeating part, it's possible to wrap in a function
 
                     //home page
                     const tabContentElement = document.querySelector(
@@ -833,15 +826,14 @@ if (typeof Tabs !== 'function') {
                             iframe.contentDocument ||
                             iframe.contentWindow.document
 
-                        /* тут может возникнуть ситуация, когда есть айфрейм, 
-                        но внутри табы контент еще не подгрузился, тогда чистить 
-                        интервал не нужно, путь опршивает табу, пока не закончатся попытки */
+                        /* in case iframe exists but the content not loaded yet there are no need
+                        to clear the interval, let it scan till the timeout */
                         if (iframeDoc.readyState === 'complete') {
                             this._tabIframeLoadedCallback(iframeDoc, tabId)
                             return
                         }
                     } else if (tabContentElement) {
-                        //home page - она не в iframe
+                        //home page - id does not use iframe
                         this._tabIframeLoadedCallback(
                             null,
                             tabId,
@@ -859,7 +851,7 @@ if (typeof Tabs !== 'function') {
             const visited = this.visited.getAll()
 
             for (let i = 0; i < visited.length; i++) {
-                //удаляем закрытую табу из стории и заодно удаляет дубликаты, которые могли образоваться после удаления
+                //remove closed tab from history and remove duplicates, that may be generated after removal
                 if (visited[i] !== tabId) {
                     if (visited[i] !== duplTab || i === 0) {
                         deduplicatedArr.push(visited[i])
@@ -870,11 +862,11 @@ if (typeof Tabs !== 'function') {
 
             this.visited.setAll(deduplicatedArr)
 
-            delete this._tabsInfo[tabId] //удаление информации о табе
+            delete this._tabsInfo[tabId] //remove tab info
         }
 
+        //return last time opened tab id
         getCurrent() {
-            //возвращает id последней открытой табы
             if (this.visited.length() > 0) {
                 return this.visited[this.visited.length() - 1]
             }
@@ -884,15 +876,15 @@ if (typeof Tabs !== 'function') {
             return this._tabsInfo[tabId]
         }
 
+        //returns id for the last time accessed tab
         getPrevious() {
-            //возвращает id предпоследней открытой табы
             if (this.visited.length() > 1) {
                 return this.visited[this.visited.length - 2]
             }
         }
 
-        //хендлер выбора табы - вызывает setCurrent
-        //вероятно, будут проблемы, если пользоатель двигается по табам не кликами. не знаю, возможно ли это
+        //calls setCurrect and starts tab scan etc.
+        //possible issue: could not work if user moves between tabs using buttons
         tabsListClickHandler(e) {
             let existingTabs = []
             for (let tab of this.tabsRef.querySelectorAll('li[role="tab"]')) {
@@ -901,13 +893,13 @@ if (typeof Tabs !== 'function') {
 
             const selectedTab = e.target.closest('li[role="tab"]')
 
-            //доп защита, чтобы добавлять только те табы, которые реально есть в списке
+            //additional protection to add only tabs that exist in the list
             if (selectedTab && existingTabs.includes(selectedTab.id)) {
-                this.setCurrent(selectedTab) //добавление кликнутой табы в список посещенных таб
+                this.setCurrent(selectedTab) //adds clicked tab to the list of visited tabs
             }
         }
 
-        //закрытие табы по клику по колесику мыши
+        //close the tab on middle click
         tabsListMiddleClickHandler(e) {
             let selectedTab = e.target.closest('li[role="tab"]')
             if (selectedTab && e.button === 1) {
@@ -915,7 +907,7 @@ if (typeof Tabs !== 'function') {
             }
         }
 
-        //создает поповер для выбранной табы
+        //TODO: creates popover for tab on hover
         tabsListHoverHandler(e) {
             const selectedTab = e.target.closest('li[role="tab"]')
             if (selectedTab) {
@@ -959,11 +951,9 @@ if (typeof Tabs !== 'function') {
             return r.appendChild(templateEngine(e.content)), r
         }
 
-        //config для mutation observer
-        /*
+        /* config for mutation observer
         known issue fixed: tab switch and current tab setting does not work if tab open
-        occures for one of the existing tab from references component
-        */
+        occures for one of the existing tab from references component */
         _tabsObserver = {
             config: {
                 childList: true,
@@ -1007,8 +997,8 @@ if (typeof Tabs !== 'function') {
         addLogsToolbarItem() {
             //'ENV_LOGS__INT_PEGA', ENV_LOGS__EXT, ENV_LOGS__INT_COMMON
             /* 
-            по double click будет открываться общее окно логов пеги
-            по клику будут открываться либо PEGA логи, либо external логи
+            egeneral logs windonw will be opened on double click
+            external logs will be opened on single click
             */
             /*
             <div>
@@ -1060,7 +1050,7 @@ if (typeof Tabs !== 'function') {
             const logFileA = document.createElement('a')
             logFileA.classList.add('pega-extension__log-a')
 
-            //будет открывать по клику
+            //open on single click
             const logFileAClick = document.createElement('a')
             logFileA.appendChild(logFileAClick)
             if (envSettingLogsIcon === 'ENV_LOGS__INT_PEGA') {
@@ -1077,7 +1067,7 @@ if (typeof Tabs !== 'function') {
                 logFileAClick.target = '_blank'
             }
 
-            //по двойному клику открывать общее окно логов
+            //open general window on double click
             const logFileADBLClick = document.createElement('a')
             logFileA.appendChild(logFileADBLClick)
             const openLogsSettings = logSource.ENV_LOGS__INT_COMMON
@@ -1131,6 +1121,6 @@ if (typeof Tabs !== 'function') {
 if (!window.tabs) {
     window.tabs = new window.Tabs()
 } else {
-    //произошел рефреш рула через actions > refresh
+    //tab content refresh occured from actions > refresh
     window.tabs.setCurrent(window.tabs.getCurrentOpenTabElement())
 }
