@@ -21,6 +21,10 @@ s.onload = function () {
 
     clearInterval(tabId) - clears interval and removes interval id from _tabsInfo
     intervalId from _tabsInfo used in setCurrentTab, to avoid start processing again
+
+    getExtensionSettings() - requests extension settings. TODO: request settings reload from backgroud worker
+
+    initTabsDragAndDrop() - initiates tabs drag and drop to reorder
 */
 
 if (typeof Tabs !== 'function') {
@@ -32,9 +36,11 @@ if (typeof Tabs !== 'function') {
             }
 
             //get os type. try to get value from local storage first
-            let osType = navigator.userAgentData.platform
-            if (osType.toLowerCase().includes('mac')) {
+            let osType = navigator.userAgentData.platform.toLowerCase()
+            if (osType.includes('mac')) {
                 osType = 'mac'
+            } else if (osType.includes('win')) {
+                osType = 'win'
             }
             this.OS_TYPE = osType
 
@@ -69,10 +75,11 @@ if (typeof Tabs !== 'function') {
                 this.tabsListMiddleClickHandler
             )
 
-            //makes all opened tabs draggable
-            for (const t of this.tabsRef.querySelectorAll('li[role="tab"]')) {
-                t?.setAttribute('draggable', true)
-            }
+            //injecting styles
+            this.injectStyles()
+
+            //initializes drag and drop functionality for dev portal tabs
+            this.initTabsDragAndDrop()
 
             this.initVisitedTabs = this.initVisitedTabs.bind(this)
             this.initVisitedTabs()
@@ -98,6 +105,100 @@ if (typeof Tabs !== 'function') {
             this.addLogsToolbarItem() //add logs icon for tooter toolbar
 
             this.getExtensionSettings()
+        }
+
+        //inject CSS styles. target - target element
+        injectStyles(target) {
+            if (!target) return
+
+            const cssLink = document.createElement('link')
+            cssLink.href = chrome.runtime.getURL('build/styles.css')
+            cssLink.rel = 'stylesheet'
+            cssLink.type = 'text/css'
+            target.head.appendChild(cssLink)
+        }
+
+        initTabsDragAndDrop() {
+            //makes all opened tabs draggable
+            for (const t of this.tabsRef.querySelectorAll('li[role="tab"]')) {
+                this.makeTabDraggable(t)
+            }
+
+            this.tabsRef.addEventListener('dragstart', (e) => {
+                if (e.target.matches('li[role="tab"]')) {
+                    e.target.classList.add('pega-extension__tab_dragging')
+
+                    e.target.parentElement.classList.add(
+                        'pega-extension__child_dragging'
+                    )
+                }
+            })
+
+            this.tabsRef.addEventListener('dragend', (e) => {
+                if (e.target.matches('li[role="tab"]')) {
+                    e.target.classList.remove('pega-extension__tab_dragging')
+
+                    e.target.parentElement.classList.add(
+                        'pega-extension__child_dragging'
+                    )
+                }
+            })
+
+            function getDragAfterElement(x) {
+                const draggableElements = [
+                    ...this.tabsRef.querySelectorAll(
+                        '.draggable:not(.pega-extension__tab_dragging)'
+                    ),
+                ]
+
+                return draggableElements.reduce(
+                    (closest, child) => {
+                        const box = child.getBoundingClientRect()
+                        const offset = x - box.left - box.width / 2
+
+                        if (offset < 0 && offset > closest.offset) {
+                            return { offset: offset, element: child }
+                        } else {
+                            return closest
+                        }
+                    },
+                    {
+                        offset: Number.NEGATIVE_INFINITY,
+                    }
+                ).element
+            }
+
+            getDragAfterElement = getDragAfterElement.bind(this)
+
+            this.tabsRef.addEventListener('dragover', (e) => {
+                e.preventDefault()
+
+                let afterElement = getDragAfterElement(e.clientX)
+                const draggable = this.tabsRef.querySelector(
+                    '.pega-extension__tab_dragging'
+                )
+
+                if (!afterElement) {
+                    afterElement = this.tabsRef.querySelector(
+                        '.rightborder.disabled'
+                    )
+                }
+
+                if (!afterElement) {
+                    console.error('Tab reorder: no last element was found')
+                } else {
+                    this.tabsRef.insertBefore(draggable, afterElement)
+                }
+            })
+        }
+
+        //sets attribute and class
+        makeTabDraggable(tabRef) {
+            if (!tabRef || tabRef.getAttribute('aria-label') === 'Home') return
+
+            tabRef.setAttribute('draggable', true) //makes tab draggable
+            !tabRef.classList.contains('draggable') &&
+                tabRef.classList.add('draggable')
         }
 
         //get extension settings. mainly set from popup and map to current object
@@ -296,43 +397,42 @@ if (typeof Tabs !== 'function') {
 
             const settings = this.tabSwitchSettings
 
-            console.log('os type', this.OS_TYPE)
-            console.log('obj', e)
+            /* for mac Command = Meta key, Option = Alt, Control = Ctrl
+            for win Ctrl = Ctrl, Alt = Alt */
+            let tabSwitchAllowed = false
 
-            console.log(
-                'expression',
-                this.OS_TYPE === 'mac' &&
-                    settings.sysKey === 'Meta' &&
+            if (this.OS_TYPE === 'mac' || this.OS_TYPE === 'win') {
+                tabSwitchAllowed =
+                    ((settings.sysKey === 'Meta' &&
+                        e.metaKey &&
+                        !e.ctrlKey &&
+                        !e.altKey) ||
+                        (settings.sysKey === 'Alt' &&
+                            e.altKey &&
+                            !e.ctrlKey &&
+                            !e.metaKey) ||
+                        (settings.sysKey === 'Control' &&
+                            e.ctrlKey &&
+                            !e.metaKey &&
+                            !e.altKey)) &&
                     e.key === settings.key
-            )
+            }
 
-            if (
-                this.OS_TYPE === 'mac' &&
-                ((settings.sysKey === 'Meta' && e.metaKey) ||
-                    settings.sysKey === 'Alt' ||
-                    settings.sysKey === 'Control') &&
-                e.key === settings.key
-            ) {
+            if (tabSwitchAllowed) {
                 e.preventDefault()
 
                 const prevTabIndex = this.visited.length() - 2
 
-                //console.log('prev tab index', prevTabIndex)
-
                 if (prevTabIndex >= 0) {
                     const prevTab = this.visited.getAll()[prevTabIndex]
 
-                    //console.log('prevTab', prevTab)
-
                     this.tabsRef.querySelector(`li#${prevTab}`)?.click()
                 }
-
-                //console.log('should be switch')
             }
         }
 
         setCurrent(tab) {
-            tab?.setAttribute('draggable', true) //makes tab draggable
+            this.makeTabDraggable(tab)
 
             //actualize list of visited tabs on each attempt of setting current
             const currentTabIdsArr = this.getCurrentTabIdsArr()
@@ -373,6 +473,9 @@ if (typeof Tabs !== 'function') {
         //parses pega tab
         _tabIframeLoadedCallback(iframeDoc, tabId, tabContentElement) {
             if (iframeDoc) {
+                //injecting styles to iframe
+                this.injectStyles(iframeDoc)
+
                 //TODO: try to catch tab swtich from iframe
                 iframeDoc.body.addEventListener('keydown', this.onTabSwitch)
 
@@ -437,13 +540,6 @@ if (typeof Tabs !== 'function') {
 
                 //adds functionality to copy class name on click
                 const classLabelElement = classElements?.querySelector('label')
-
-                //injecting styles to iframe
-                let cssLink = document.createElement('link')
-                cssLink.href = chrome.runtime.getURL('build/styles.css')
-                cssLink.rel = 'stylesheet'
-                cssLink.type = 'text/css'
-                iframeDoc.head.appendChild(cssLink)
 
                 this.makeElementTextCopiable(
                     classLabelElement,
@@ -585,7 +681,6 @@ if (typeof Tabs !== 'function') {
 
                         /* BUG: sometimes it causes reload till timeout
                         Association rule creation tab opened, trying to switch to the previous tab*/
-                        console.log('elementwithkey', tempElement)
 
                         const pzInsKey = (
                             tempElement.querySelector('pzDocumentKey') ||
@@ -969,7 +1064,10 @@ if (typeof Tabs !== 'function') {
                         for (const node of mr.removedNodes) {
                             if (
                                 node.nodeType != Node.TEXT_NODE &&
-                                node.getAttribute('role') === 'tab'
+                                node.getAttribute('role') === 'tab' &&
+                                !node.parentElement.classList.contains(
+                                    'pega-extension__child_dragging'
+                                )
                             ) {
                                 window.tabs.remove(node.getAttribute('id'))
                             }

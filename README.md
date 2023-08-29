@@ -13,12 +13,14 @@
 -   DB Query with parameter values in prettified format, icon on this field copies result SQL to clipboard
 -   Toggle Pega rulesets in Tracer settings
 -   Most useful pages pinned in Clipboard viewer - by default: pyWorkPage, pyWorkCover, newAssignPage, pyDisplayHarness, RH_1
+-   Reorder tabs by drag and drop
 
-To be implemented:
+#To be implemented:
 
--   reorder tabs by drag and drop. almost completed
 -   make rule signature configurable from extension popup
 -   prettify tabs
+    -   minimize home tab
+    -   avoid empty spaces in tabs headers
 -   add functionality to create personal sets of rulesets to toggle
 -   allow to pin pages in clipboard viewer
 -   memorize width of the left panel in Clipboard viewer
@@ -38,3 +40,7 @@ To be implemented:
 -   tab swtich sometimes does not work after page refresh untill other pega tabs loaded
 
 Extension settings synced between browsers
+
+#Known bugs:
+
+-   Tabs will be reordered in initial state after browser tab refresh

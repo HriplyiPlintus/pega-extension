@@ -1,6 +1,9 @@
 /* main assumption is that user will not change settings in different session while popup is open
 getSettings gets fresh extension settings on load 
 
+localStorage:
+    os-type: mac/win
+
 settins data model
 {
     'tab-switch': {
@@ -15,13 +18,19 @@ class Popup {
         }
 
         //get os type. try to get value from local storage first
-        this.OS_TYPE = localStorage.getItem('os-type') //mac or win
+        this.OS_TYPE = localStorage.getItem('os-type')
+
         if (!this.OS_TYPE) {
-            chrome.runtime.getPlatformInfo(function (info) {
-                this.OS_TYPE = info.os
-                this.IS_OS_TYPE_WIN = this.OS_TYPE === 'win' ? 'true' : 'false'
-                localStorage.setItem('os-type', this.OS_TYPE)
-            })
+            let osType = navigator.userAgentData.platform.toLowerCase()
+            if (osType.includes('mac')) {
+                osType = 'mac'
+            } else if (osType.includes('win')) {
+                osType = 'win'
+            }
+
+            this.OS_TYPE = osType
+
+            localStorage.setItem('os-type', this.OS_TYPE)
         }
 
         //after this time the popup will open on Projects tab, otherwise it will open the same tab

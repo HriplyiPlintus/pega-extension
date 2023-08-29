@@ -163,3 +163,7 @@
 .pega-extension__display-none {
     display: none;
 }
+
+.draggable.pega-extension__tab_dragging {
+    opacity: 0.2;
+}
