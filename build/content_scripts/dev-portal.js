@@ -1065,9 +1065,11 @@ if (typeof Tabs !== 'function') {
                             if (
                                 node.nodeType != Node.TEXT_NODE &&
                                 node.getAttribute('role') === 'tab' &&
-                                !node.parentElement.classList.contains(
-                                    'pega-extension__child_dragging'
-                                )
+                                ((node.parentElement &&
+                                    !node.parentElement.classList.contains(
+                                        'pega-extension__child_dragging'
+                                    )) ||
+                                    !node.parentElement)
                             ) {
                                 window.tabs.remove(node.getAttribute('id'))
                             }
