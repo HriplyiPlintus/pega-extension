@@ -45,7 +45,7 @@ function settingTabSwitchShortcut(context) {
 
                 const target = e.target
 
-                //most of the keys are in Key<key_in_upperCase> and we need only ctual key or the whole name
+                //most of the keys are in Key<key_in_upperCase> and we need only actual key or the whole name
                 let key = e.code.includes('Key')
                     ? e.code.substring(3, 4)
                     : e.key
