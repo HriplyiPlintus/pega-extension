@@ -401,21 +401,24 @@ if (typeof Tabs !== 'function') {
             for win Ctrl = Ctrl, Alt = Alt */
             let tabSwitchAllowed = false
 
+            let key = e.code.includes('Key') ? e.code.substring(3, 4) : e.key
+            key = key.length === 1 ? key.toLowerCase() : key
+
             if (this.OS_TYPE === 'mac' || this.OS_TYPE === 'win') {
                 tabSwitchAllowed =
                     ((settings.sysKey === 'Meta' &&
                         e.metaKey &&
                         !e.ctrlKey &&
                         !e.altKey) ||
-                        (settings.sysKey === 'Alt' &&
+                        (settings.sysKey === 'Option' &&
                             e.altKey &&
                             !e.ctrlKey &&
                             !e.metaKey) ||
-                        (settings.sysKey === 'Control' &&
+                        (settings.sysKey === 'Ctrl' &&
                             e.ctrlKey &&
                             !e.metaKey &&
                             !e.altKey)) &&
-                    e.key === settings.key
+                    key === settings.key
             }
 
             if (tabSwitchAllowed) {
@@ -443,10 +446,12 @@ if (typeof Tabs !== 'function') {
                 }
             }
 
-            //add if the last opened tab is not the same as new one or there are no tabs yes
+            //add if the last opened tab is not the same as new one or there are no tabs yet
             if (
                 this.visited.currentTab !== tab.id ||
-                this.visited.length() === 0
+                this.visited.length() === 0 ||
+                this.visited.getAll()[this.visited.getAll().length - 1] !==
+                    tab.id
             ) {
                 this.visited.push(tab.id)
                 this.visited.currentTab = tab.id
