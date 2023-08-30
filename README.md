@@ -42,4 +42,4 @@ Extension settings synced between browsers
 
 #Known bugs:
 
--   Tabs will be reordered in initial state after browser tab refresh
+-   Dev Studio tabs reordered in initial state after browser tab refresh
