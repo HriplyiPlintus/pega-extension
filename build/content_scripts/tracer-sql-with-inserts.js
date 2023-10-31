@@ -73,10 +73,10 @@ function addSqlWithInserts() {
     for (const r of rows) {
         const eventType = r
             ?.querySelector('.eventElementDataBold')
-            .innerText.trim()
+            ?.innerText.trim()
         const eventTypeValue = r
             ?.querySelector('.eventElementData')
-            .innerText.trim()
+            ?.innerText.trim()
 
         if (eventType === 'Event Type' && eventTypeValue === 'DB Query') {
             const { query, insertsRow } = enrichSqlWithInserts(rows)

@@ -119,14 +119,29 @@ if (typeof Tabs !== 'function') {
         }
 
         initTabsDragAndDrop() {
+            /*
+            сщтыщдуюдщп
+            1. get direction - left/right
+                положение курсора по у на момент захвата элемента
+                положение левой границы захваченного элемента, положение правой границы (ну или ширину элемента)
+                по текущему положению курсора по 
+                - dragover ивент не нравится. хочется что-то другое использовать, чтобы можно было вылезать за пределы
+                    области, где drag and drop работает
+            2. 
+            */
+
             //makes all opened tabs draggable
             for (const t of this.tabsRef.querySelectorAll('li[role="tab"]')) {
                 this.makeTabDraggable(t)
             }
 
             this.tabsRef.addEventListener('dragstart', (e) => {
+                console.log('dragstart', e)
+
                 if (e.target.matches('li[role="tab"]')) {
                     e.target.classList.add('pega-extension__tab_dragging')
+
+                    //e.target.parentElement.dataset.draggingElementLeft
 
                     e.target.parentElement.classList.add(
                         'pega-extension__child_dragging'
@@ -151,10 +166,17 @@ if (typeof Tabs !== 'function') {
                     ),
                 ]
 
-                return draggableElements.reduce(
+                const result = draggableElements.reduce(
                     (closest, child) => {
+                        //console.log('closest', closest) //it's kind of a result thing
+                        //console.log('child', child) //other draggable tabs
+                        //console.log('x', x) //x axis - positive value
                         const box = child.getBoundingClientRect()
+
+                        //текущее положение курсора - таба.левая_граница - таба.правая_граница/2
                         const offset = x - box.left - box.width / 2
+
+                        //console.log('offset', offset)
 
                         if (offset < 0 && offset > closest.offset) {
                             return { offset: offset, element: child }
@@ -165,7 +187,11 @@ if (typeof Tabs !== 'function') {
                     {
                         offset: Number.NEGATIVE_INFINITY,
                     }
-                ).element
+                )
+
+                //console.log('result', result)
+
+                return result.element
             }
 
             getDragAfterElement = getDragAfterElement.bind(this)
@@ -173,10 +199,11 @@ if (typeof Tabs !== 'function') {
             this.tabsRef.addEventListener('dragover', (e) => {
                 e.preventDefault()
 
-                let afterElement = getDragAfterElement(e.clientX)
                 const draggable = this.tabsRef.querySelector(
                     '.pega-extension__tab_dragging'
                 )
+
+                let afterElement = getDragAfterElement(e.clientX)
 
                 if (!afterElement) {
                     afterElement = this.tabsRef.querySelector(
@@ -184,9 +211,60 @@ if (typeof Tabs !== 'function') {
                     )
                 }
 
+                /*
+                const afterElB = afterElement.getBoundingClientRect()
+
+                const draggableElB = draggable.getBoundingClientRect()
+
+                let prevElement = draggable.previousElementSibling
+                let moveDirection = null
+
+                if (draggableElB.left > afterElB.left) {
+                    moveDirection = false //left
+                } else {
+                    moveDirection = true //right
+                }
+                */
+
+                //if (afterElement.nextElementSibling.id !== draggable.id) {
+
                 if (!afterElement) {
                     console.error('Tab reorder: no last element was found')
                 } else {
+                    /*
+                    const animationTarget = moveDirection
+                        ? afterElement.previousElementSibling
+                        : afterElement
+                    */
+
+                    //console.log('draggable', draggable.getAttribute('id'))
+
+                    /*
+                    //exit processing if animation target is the same as dragged element
+                    if (
+                        animationTarget.getAttribute('id') ===
+                            draggable.getAttribute('id') ||
+                        animationTarget.dataset.isTransitioning === true ||
+                        animationTarget.matches('.rightborder.disabled')
+                    )
+                        return
+
+                    animationTarget.style.transform = `translateX(${
+                        moveDirection ? '-100%' : '100%'
+                    })`
+
+                    animationTarget.style.transition = 'transform .3s'
+
+                    animationTarget.ontransitionend = () => {
+                        animationTarget.style.transition = ''
+                        animationTarget.style.transform = ''
+                        animationTarget.dataset.isTransitioning = false
+
+                        this.tabsRef.insertBefore(draggable, afterElement)
+                        //target.parentNode.insertBefore(target, dropTarget)
+                    }
+                    */
+
                     this.tabsRef.insertBefore(draggable, afterElement)
                 }
             })
@@ -400,8 +478,15 @@ if (typeof Tabs !== 'function') {
             /* for mac Command = Meta key, Option = Alt, Control = Ctrl
             for win Ctrl = Ctrl, Alt = Alt */
             let tabSwitchAllowed = false
+            console.log(e)
 
-            let key = e.code.includes('Key') ? e.code.substring(3, 4) : e.key
+            let key =
+                e.code && e.code.includes('Key')
+                    ? e.code.substring(3, 4)
+                    : e.key
+
+            if (!key) return //exceptional case - exit processing
+
             key = key.length === 1 ? key.toLowerCase() : key
 
             if (this.OS_TYPE === 'mac' || this.OS_TYPE === 'win') {
@@ -873,6 +958,7 @@ if (typeof Tabs !== 'function') {
                     }
 
                     //get max timer id for existing timers
+                    //BUG: open case - not a regular tab, close it, and check the console
                     const maxTimerId = existingTimers.sort(function (a, b) {
                         return a.timerId - b.timerId
                     })[existingTimers.length - 1].timerId
@@ -1161,6 +1247,7 @@ if (typeof Tabs !== 'function') {
             if (envSettingLogsIcon === 'ENV_LOGS__INT_PEGA') {
                 logFileAClick.setAttribute('target', 'popup')
                 logFileAClick.addEventListener('click', () => {
+                    console.log('open logs on single click')
                     window.open(
                         logSource.ENV_LOGS__INT_PEGA.href,
                         'Log files',

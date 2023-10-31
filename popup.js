@@ -690,7 +690,7 @@ class Popup {
                 }
             }
         }
-        //перенесено
+        //moved
         this.root.appendChild(
             this.templateEngine({
                 tag: 'div',
@@ -949,7 +949,7 @@ class Popup {
             return fragment
         }
 
-        //экспериментальныая часть
+        //experiment
         if (block.tag === 'component') {
             return this.buildComponent(block.name, block.params)
         }

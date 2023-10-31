@@ -49,6 +49,14 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         ])
         injectCSS(tabId)
         processedTabs.push(tabId)
+    } else if (tab.title.includes('Properties on Page ')) {
+        //context page data representation
+        injectJavascript(tabId, [
+            './build/content_scripts/tracer-context-page.js',
+        ])
+
+        injectCSS(tabId)
+        processedTabs.push(tabId)
     } else if (
         tab.title.includes('Tracer - PegaRULES') &&
         changeInfo.status &&
