@@ -268,3 +268,69 @@ function settingTabSwitchShortcut(context) {
 
     return controlElement
 }
+
+/* toggle switch */
+
+/* setting row template
+contains: 
+label           set of controls
+info text */
+function buildSettingRow({ label, infoContentArr, controlContentArr }) {
+    const settings = {
+        markup: {
+            tag: 'div',
+            cls: 'setting-item',
+            content: [
+                {
+                    tag: 'div',
+                    cls: 'setting-item-desc',
+                    content: [
+                        {
+                            tag: 'div',
+                            cls: 'setting-item-label',
+                            content: label,
+                        },
+                        {
+                            tag: 'div',
+                            cls: 'setting-item-info',
+                            content: infoContentArr,
+                        },
+                    ],
+                },
+                {
+                    tag: 'div',
+                    cls: 'setting-item-control',
+                    content: controlContentArr,
+                },
+            ],
+        },
+    }
+
+    //const controlElement = context.templateEngine(settings?.markup)
+    return settings.markup
+}
+
+function tracerEventWindowDimensions({
+    label,
+    infoContentArr,
+    controlContentArr,
+    renderEngine,
+}) {
+    //buildSettingRow({ label, infoContentArr, controlContent })
+    const markup = buildSettingRow({
+        label: 'Set trace event window dimensions',
+        infoContentArr: ['Leave blank for default settings'],
+        controlContentArr: [
+            {
+                tag: 'input',
+            },
+        ],
+    })
+
+    return renderEngine(markup)
+}
+
+const popupUILib = {
+    settingTabSwitchShortcut: settingTabSwitchShortcut,
+    tracerEventWindowDimensions: tracerEventWindowDimensions,
+}

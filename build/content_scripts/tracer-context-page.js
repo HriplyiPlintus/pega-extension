@@ -1,10 +1,75 @@
 //trace context page viewer popup
+let clipboardJSON = null
+
 if (document.readyState !== 'loading') {
-    contextPageToJSON()
+    clipboardJSON = contextPageToJSON()
 } else {
     document.addEventListener('DOMContentLoaded', () => {
-        contextPageToJSON()
+        clipboardJSON = contextPageToJSON()
     })
+}
+
+function applyDefaultSettings() {}
+
+renderMakrupFromJSON(clipboardJSON)
+
+//resize event hadling
+window.addEventListener('resize', (e) => {
+    const t = e.target
+    console.log(`widht: ${t.innerWidth} height: ${t.innerHeight}`)
+})
+
+//prepares markup similar to clipboard viewer
+function renderMakrupFromJSON(contextPageJSON) {
+    //if context page was not parsed
+    if (!contextPageJSON) {
+        console.warn('Pega Extension: could not parse context page')
+        return
+    }
+    //add custom class to control visibility later
+    const originalBody = document.querySelector('body')
+    originalBody.classList.add(
+        'pega-extension__tracer-context-page_body-original'
+    )
+    originalBody.style.display = 'none' //TODO: test
+
+    originalBody.parentElement.appendChild(
+        templateEngine({
+            tag: 'body',
+            cls: 'pega-extension__tcp_body',
+            content: [
+                {
+                    tag: 'header',
+                    content: [
+                        {
+                            tag: 'div',
+                            content: `Properties on Page Trace Event [${contextPageJSON['page-title']}]`,
+                            cls: ['pega-extension__tcp_header'],
+                        },
+                    ],
+                },
+                {
+                    tag: 'aside',
+                    content: [
+                        {
+                            tag: 'input',
+                            cls: 'pega-extension__tcp_search_input',
+                            attrs: {
+                                placeholder: 'Search within this context',
+                            },
+                        },
+                        {
+                            tag: 'div',
+                            cls: 'pega-extension__tcp_resizable-handle',
+                        },
+                    ],
+                },
+                {
+                    tag: 'main',
+                },
+            ],
+        })
+    )
 }
 
 //TODO: create flat representation of clipboard. this will allow to search fro keys or/and values
@@ -58,7 +123,12 @@ function templateEngine(block) {
     return result
 }
 
-//creates nested JSON from clipboard page
+/* creates nested JSON from clipboard page
+result structure: {
+    page-title: "",
+    properties: {[]}
+}
+*/
 function contextPageToJSON() {
     const table = document.querySelector('table tr div.dialogDataContainer')
 
@@ -127,6 +197,13 @@ function contextPageToJSON() {
 
                     pushToResults = result[result.length - 1].value //change results context
                 }
+
+                /*
+                {
+                    key, //trimmed original element key
+                    class //page class
+                }
+                */
                 pushToResults.push({
                     key: key.toString().trim(),
                     value: value,
@@ -142,7 +219,13 @@ function contextPageToJSON() {
         return result
     }
 
-    let result = collectPageAttributes(table)
+    const result = {
+        'page-title': table.querySelector(
+            '.dialogSubHeaderBackground .dialogSubHeader'
+        )?.innerText,
+        properties: collectPageAttributes(table),
+    }
 
     console.log('final result', result)
+    return result
 }

@@ -272,6 +272,15 @@ class Popup {
                         name: 'setting-tab-switch-shortcut',
                     })
                 )
+
+                //probably redundant
+                const eventTraceSettings = root.appendChild(
+                    this.templateEngine({
+                        tag: 'component',
+                        name: 'setting-event-trace-persist-state',
+                    })
+                )
+
                 break
             case 'contact':
                 console.log('render page', pageName)
@@ -529,9 +538,21 @@ class Popup {
             case 'setting-tab-switch-shortcut':
                 //control to capture tab switch shortcut
                 //loads from external file, depends on this function
-                const tabSwitchSettingControl = settingTabSwitchShortcut(this)
+                const tabSwitchSettingControl =
+                    popupUILib.settingTabSwitchShortcut(this)
 
                 resultComponent.appendChild(tabSwitchSettingControl)
+                break
+            case 'setting-event-trace-persist-state':
+                /* control to capture default width and height settings
+                for tracer event window - tracer-context-page */
+                //loads from external file
+                const tracerEventWindowDimensions =
+                    popupUILib.tracerEventWindowDimensions({
+                        renderEngine: this.templateEngine.bind(this),
+                    })
+
+                resultComponent.appendChild(tracerEventWindowDimensions)
                 break
             case 'header-nav-arrow-back':
                 //back arrow for header breadcrumbs (but may be used in other scenarios as well)

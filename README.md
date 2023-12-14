@@ -37,9 +37,10 @@
 -   extension settings
 -   allow to turn off features
 -   extension icon view update on allowed tabs
+-   highlight nested rows in data transform
 
 Extension settings synced between browsers
 
 #Known bugs:
 
--   Dev Studio tabs reordered in initial state after browser tab refresh
+-   Dev Studio tabs reordered in initial state after browser tab refresh - no plans to fix this
