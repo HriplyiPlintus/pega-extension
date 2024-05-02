@@ -127,7 +127,7 @@ function injectCSS(tabId) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    const tabId = sender.tab.id
+    const tabId = sender?.tab?.id
 
     //request for extension settings from content script
     if (message.message === 'getSettings') {
@@ -140,11 +140,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
     }
 
-    if (message.script) {
+    if (tabId && message.script) {
         injectJavascript(tabId, [`./build/content_scripts/${message.script}`])
     }
 
-    if (message.styles) {
+    if (tabId && message.styles) {
         injectCSS(tabId)
     }
 })
