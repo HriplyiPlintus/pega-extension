@@ -33,7 +33,7 @@ class Popup {
             localStorage.setItem('os-type', this.OS_TYPE)
         }
 
-        //after this time the popup will open on Projects tab, otherwise it will open the same tab
+        //after this time the popup will open on default tab, otherwise it will open the same tab
         this.SAME_SESSION_TIMEOUT = 30000
 
         setInterval(() => {
@@ -117,8 +117,31 @@ class Popup {
             },
             valMsg: 'Include Control, Option, or ⌘',
         },
-        win: {},
+        win: {
+            allowedSysKeys: ['alt', 'control'],
+            /* for win only ctrl and alt allowed, meta ignored */
+            sysKeyDisplay: (meta, ctrl, alt) => {
+                let result = {}
+                if (ctrl) {
+                    result = {
+                        key: 'Ctrl',
+                        display: 'Ctrl',
+                    }
+                } else if (alt) {
+                    result = {
+                        key: 'Alt',
+                        display: 'Alt',
+                    }
+                }
+                return result
+            },
+            sysKeysMapping: (key) => {
+                return key === 'Control' ? 'Ctrl' : key === 'Alt' ? 'Alt' : key
+            },
+            valMsg: 'Include Ctrl or Alt',
+        },
         setShortcut: (sysKey, key) => {
+            console.log('setShortcut', `sysKey: ${sysKey}, key: ${key}`)
             let result = ''
 
             if (sysKey && key) {
@@ -127,7 +150,8 @@ class Popup {
                 result = ''
             }
 
-            if (!this.settings['tab-switch']) {
+            //BUG settings for clean run is undefined
+            if (!this.settings?.['tab-switch']) {
                 this.settings['tab-switch'] = {}
             }
 
@@ -136,8 +160,12 @@ class Popup {
 
             this.setExtensionSettings()
         },
+        //BUG breaks for clean installation
         getShortcut: () => {
-            return JSON.parse(this.settings['tab-switch'][this.OS_TYPE] || null)
+            console.log('getShortcut', this.settings)
+            return JSON.parse(
+                this.settings?.['tab-switch']?.[this.OS_TYPE] || null
+            )
         },
     }
 
@@ -153,18 +181,22 @@ class Popup {
     async getSettings(callback) {
         //localStorage.setItem('popup-state', '')
         await chrome.storage.sync.get(['settings']).then((result) => {
-            this.settings = result.settings
+            this.settings = result.settings ?? {} //fallback for clean installation
+
+            console.log('getSettings', this.settings)
+
             if (callback) callback()
         })
     }
 
+    /* initializes popup */
     initPopup() {
-        //try to get last access timeout value
+        //try to get last access timesamp
         const lastAccessTimout = new Date(
             this.state.getAttribute('last-access-timestamp')
         )
 
-        /* if popup last time was accessed more then predefined timeout constant
+        /* if popup last time was accessed more then predefined timeout 
         show projects tab, otherwise open last time accessed page/navbar */
         if (
             Math.abs(new Date() - lastAccessTimout) >=
@@ -196,11 +228,10 @@ class Popup {
             //navbar value is the same as general pages names
             this.state.setState('navbar', pageName)
             if (!this.root.querySelector('.header-navbar')) {
-                /*if current page is one of the set of main pages but
-                there is not navbar (probably first render) 
-                then render bavbar nad navbar content wrapper
-                also override root
-                */
+                /*if current page is in the set of main pages but
+                there is no navbar (probably first render) 
+                then render bavbar and navbar content wrapper.
+                also override root */
                 this.root.appendChild(this.buildComponent('header-navbar'))
                 this.root.appendChild(this.buildComponent('navbar-tab-wrapper'))
             }
@@ -538,10 +569,12 @@ class Popup {
             case 'setting-tab-switch-shortcut':
                 //control to capture tab switch shortcut
                 //loads from external file, depends on this function
+                //TODO: replace with defined contract
                 const tabSwitchSettingControl =
                     popupUILib.settingTabSwitchShortcut(this)
 
                 resultComponent.appendChild(tabSwitchSettingControl)
+
                 break
             case 'setting-event-trace-persist-state':
                 /* control to capture default width and height settings
@@ -1037,6 +1070,31 @@ chrome.storage.sync.set({
         },
     ],
 })
+*/
+
+/* structure 2.0
+[
+    {
+        "devStudio": {
+            "color": "",
+            "icon": "🏡",
+            "title": "DEV"
+        },
+        "enabled": true,
+        "id": 23421341234,
+        "logs": {},
+        "name": "SCI",
+        "tracer": {
+            "events": [
+                {
+                    "settings": "all_false",
+                    "title": "Deselect all"
+                }
+            ]
+        },
+        "url": "https://srvcrp-digops-dt1.pegacloud.net/"
+    }
+]
 */
 
 let popup = new Popup(document.querySelector('.popup'))

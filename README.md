@@ -44,3 +44,6 @@ Extension settings synced between browsers
 #Known bugs:
 
 -   Dev Studio tabs reordered in initial state after browser tab refresh - no plans to fix this
+
+#How to start development
+1. Reinstall the extension

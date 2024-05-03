@@ -334,14 +334,14 @@ input.setting-input-field:hover {
     width: 500px;
 }
 
-.setting-item-description {
+.setting-item-info {
     color: #767676;
-    font-size: 13px;
+    font-size: 12px;
 }
 
 .setting-item-label {
     font-size: 14px;
-    line-height: 32px;
+    line-height: 20px;
     font-weight: 400;
 }
 
