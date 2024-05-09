@@ -235,3 +235,7 @@
     left: 250px;
     cursor: ew-resize;
 }
+
+.pi-tracer::before {
+    content: 'T';
+}

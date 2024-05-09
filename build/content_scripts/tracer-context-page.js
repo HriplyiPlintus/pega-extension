@@ -9,6 +9,7 @@ if (document.readyState !== 'loading') {
     })
 }
 
+//TODO: impmlement. applies default settings
 function applyDefaultSettings() {}
 
 renderMakrupFromJSON(clipboardJSON)
@@ -24,13 +25,22 @@ function renderMakrupFromJSON(contextPageJSON) {
     //if context page was not parsed
     if (!contextPageJSON) {
         console.warn('Pega Extension: could not parse context page')
+        setTimeout(() => {
+            renderMakrupFromJSON(clipboardJSON)
+        }, 100)
         return
     }
+    window._clipboardJSON = contextPageJSON //TODO: remove. it's for tests only
+
+    const clipboardJSONMarkup = renderClipboardJSONMarkup(contextPageJSON)
+    console.log('clipboardJSONMarkup', clipboardJSONMarkup)
+
     //add custom class to control visibility later
     const originalBody = document.querySelector('body')
     originalBody.classList.add(
         'pega-extension__tracer-context-page_body-original'
     )
+    console.log('hello from tracer-context-page', originalBody)
     originalBody.style.display = 'none' //TODO: test
 
     originalBody.parentElement.appendChild(
@@ -62,6 +72,7 @@ function renderMakrupFromJSON(contextPageJSON) {
                             tag: 'div',
                             cls: 'pega-extension__tcp_resizable-handle',
                         },
+                        { tag: 'div', content: clipboardJSONMarkup }, //draw hierarchical table here in format of <ul><li></li></ul>
                     ],
                 },
                 {
@@ -72,6 +83,34 @@ function renderMakrupFromJSON(contextPageJSON) {
     )
 }
 
+//TODO: test
+function renderClipboardJSONMarkup(clipboardObj) {
+    const markup = []
+
+    for (const p of clipboardObj.properties) {
+        if (p.type === 'page') {
+            markup.push({
+                tag: 'li',
+                content: [
+                    {
+                        tag: 'div',
+                        content: [
+                            {
+                                tag: 'span',
+                                content: p.key,
+                                attrs: {
+                                    //TODO: add all property values here
+                                },
+                            },
+                        ],
+                    },
+                ],
+            })
+        }
+    }
+
+    return { tag: 'ul', content: markup }
+}
 //TODO: create flat representation of clipboard. this will allow to search fro keys or/and values
 
 //template engine
@@ -127,15 +166,15 @@ function templateEngine(block) {
 result structure: {
     page-title: "",
     properties: {[]}
-}
-*/
+} */
 function contextPageToJSON() {
     const table = document.querySelector('table tr div.dialogDataContainer')
 
     if (!table) return
 
-    /* returns [{key, value}] for each row in context page viewer
+    /* returns [{key, value, type, class}] for each row in context page viewer
     where 'key' is a name of a property and 'value' is this property value.
+    class is the page class, type is either page of property - for the ease of rendring
     each new page starts from header - tableHeader */
     function collectPageAttributes(tableElement) {
         const tableHeader = tableElement
@@ -192,21 +231,20 @@ function contextPageToJSON() {
                         (result.length > 0 &&
                             result[result.length - 1].key !== listName)
                     ) {
-                        result.push({ key: listName, value: [] })
+                        result.push({
+                            key: listName,
+                            value: [],
+                            type: 'page',
+                        })
                     }
 
                     pushToResults = result[result.length - 1].value //change results context
                 }
 
-                /*
-                {
-                    key, //trimmed original element key
-                    class //page class
-                }
-                */
                 pushToResults.push({
                     key: key.toString().trim(),
                     value: value,
+                    type: Array.isArray(value) ? 'page' : 'property',
                 })
 
                 //add page class if found

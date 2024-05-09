@@ -28,7 +28,8 @@
 -   hide/show settings for tracer columns
 -   allow to change UI elements sizes from menu
 -   change warnings view to the one from the screenshot
--   prettify pages viewer in tracer
+-   prettify pages viewer in tracer - clipboard like
+    -   add icon in the header. try to use OOTB icon with pi notation (like in the toolbar of the dev tools)
 -   highlight environment on tab icon, dev studio, tracer
 -   get start and end of a rule execution in tracer
 -   add new row in validate rule on enter
@@ -46,4 +47,5 @@ Extension settings synced between browsers
 -   Dev Studio tabs reordered in initial state after browser tab refresh - no plans to fix this
 
 #How to start development
+
 1. Reinstall the extension
