@@ -52,6 +52,10 @@ function settingTabSwitchShortcut(context) {
 
                 key = key.length === 1 ? key.toLowerCase() : key
 
+                console.log(
+                    'raw setShortcut syskeys',
+                    `meta: ${e.metaKey}, ctrl: ${e.ctrlKey}, alt: ${e.altKey}`
+                )
                 const tabSwitchInputValMsg = target
                     .closest('.control-wrapper')
                     .querySelector('span.control-msg-alert')
@@ -68,7 +72,9 @@ function settingTabSwitchShortcut(context) {
                         ].sysKeyDisplay(e.metaKey, e.ctrlKey, e.altKey)
 
                     //input value: visible part
-                    target.value = `${sysKeyDisplay}${key.toUpperCase()}`
+                    target.value = `${sysKeyDisplay}${
+                        context.OS_TYPE !== 'mac' ? ' + ' : ''
+                    }${key.toUpperCase()}`
 
                     //systemkey + key object in string: invisible part - actual setting
                     target.dataset.hotkey = JSON.stringify({
@@ -92,9 +98,12 @@ function settingTabSwitchShortcut(context) {
                         context.tabSwitchSettings[
                             context.OS_TYPE
                         ].sysKeysMapping(key)
+
+                    //console.log('pressed key', target.value)
                     target.dataset.pressedKey = key
                     tabSwitchInputValMsg.innerText = 'Type a letter'
                 } else {
+                    console.log('val msg:', key)
                     target.value = ''
                     tabSwitchInputValMsg.innerText =
                         context.tabSwitchSettings[context.OS_TYPE].valMsg //'Include Control, Option, or ⌘'
@@ -165,7 +174,7 @@ function settingTabSwitchShortcut(context) {
                             },
                             {
                                 tag: 'div',
-                                cls: 'setting-item-description',
+                                cls: 'setting-item-info',
                                 content: [
                                     'Consider the list of ',
                                     {
@@ -236,20 +245,20 @@ function settingTabSwitchShortcut(context) {
             context.OS_TYPE
         ].sysKeyDisplay(
             shortcut.sysKey === 'Meta',
-            shortcut.sysKey === 'Ctrl',
-            shortcut.sysKey === 'Option'
+            ['Ctrl', 'Alt'].includes(shortcut.sysKey), //Ctrl for mac, Alt for win
+            ['Option', 'Ctrl'].includes(shortcut.sysKey)
         )
 
         //create separate function to display hotkey
-        tabSwitchInput.value = `${
-            sysKeyToDisplay.display
+        tabSwitchInput.value = `${sysKeyToDisplay.display}${
+            context.OS_TYPE !== 'mac' ? ' + ' : ''
         }${shortcut.key.toUpperCase()}`
 
         tabSwitchInput.dataset.hotkey = JSON.stringify(shortcut)
 
         tabSwitchInput.dataset.value = tabSwitchInput.value //to display the value correctly
 
-        console.log('init', tabSwitchInput.dataset.hotkey)
+        console.log('init from ui lib', tabSwitchInput.dataset.hotkey)
     }
 
     const controlActionBtn = tabSwitchInput.parentElement.querySelector(
@@ -267,4 +276,76 @@ function settingTabSwitchShortcut(context) {
     controlActionBtn.addEventListener('click', settings.handlers.onClick)
 
     return controlElement
+}
+
+/* toggle switch */
+
+/* setting row template
+contains: 
+label           set of controls
+info text */
+function buildSettingRow({ label, infoContentArr, controlContentArr }) {
+    const settings = {
+        markup: {
+            tag: 'div',
+            cls: 'setting-row-wrapper',
+            content: [
+                {
+                    tag: 'div',
+                    cls: 'setting-item',
+                    content: [
+                        {
+                            tag: 'div',
+                            cls: 'setting-item-desc',
+                            content: [
+                                {
+                                    tag: 'div',
+                                    cls: 'setting-item-label',
+                                    content: label,
+                                },
+                                {
+                                    tag: 'div',
+                                    cls: 'setting-item-info',
+                                    content: infoContentArr,
+                                },
+                            ],
+                        },
+                        {
+                            tag: 'div',
+                            cls: 'setting-item-control',
+                            content: controlContentArr,
+                        },
+                    ],
+                },
+            ],
+        },
+    }
+
+    //const controlElement = context.templateEngine(settings?.markup)
+    return settings.markup
+}
+
+function tracerEventWindowDimensions({
+    label,
+    infoContentArr,
+    controlContentArr,
+    renderEngine,
+}) {
+    //buildSettingRow({ label, infoContentArr, controlContent })
+    const markup = buildSettingRow({
+        label: 'Set trace event window dimensions',
+        infoContentArr: ['Leave blank for default settings'],
+        controlContentArr: [
+            {
+                tag: 'input',
+            },
+        ],
+    })
+
+    return renderEngine(markup)
+}
+
+const popupUILib = {
+    settingTabSwitchShortcut: settingTabSwitchShortcut,
+    tracerEventWindowDimensions: tracerEventWindowDimensions,
 }

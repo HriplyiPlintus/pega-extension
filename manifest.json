@@ -1,7 +1,7 @@
 {
     "name": "Pega Extension",
     "description": "Extends Pega functionality",
-    "version": "0.0.0.1",
+    "version": "0.0.0.2",
     "manifest_version": 3,
     "icons": {
         "16": "assets/img/icon.png",
