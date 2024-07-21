@@ -105,6 +105,8 @@ if (typeof Tabs !== 'function') {
             this.addLogsToolbarItem() //add logs icon for tooter toolbar
 
             this.getExtensionSettings()
+
+            this.subscribeToExtensionMsgs()
         }
 
         //inject CSS styles. target - target element
@@ -301,6 +303,23 @@ if (typeof Tabs !== 'function') {
             )
         }
 
+        //subscribes to extension messages
+        subscribeToExtensionMsgs() {
+            chrome.runtime.onMessage.addListener(
+                (message, sender, sendResponse) => {
+                    console.log('message received', message)
+                    if (
+                        message.type === 'settingsUpdated' &&
+                        message.sender === 'pega-extension'
+                    ) {
+                        getExtensionSettings()
+                    }
+                }
+            )
+
+            console.log('dev-portal listens for chrome runtime messages')
+        }
+
         getCurrentOpenTabElement() {
             const currentTab = this.tabsRef.querySelector(
                 'li[role="tab"][tabindex="0"]'
@@ -475,10 +494,12 @@ if (typeof Tabs !== 'function') {
 
             const settings = this.tabSwitchSettings
 
+            console.log('dev-portal. tab switch settings', settings)
+
             /* for mac Command = Meta key, Option = Alt, Control = Ctrl
             for win Ctrl = Ctrl, Alt = Alt */
             let tabSwitchAllowed = false
-            console.log(e)
+            console.log('dev-portal. tab switch', e)
 
             let key =
                 e.code && e.code.includes('Key')
@@ -490,12 +511,16 @@ if (typeof Tabs !== 'function') {
             key = key.length === 1 ? key.toLowerCase() : key
 
             if (this.OS_TYPE === 'mac' || this.OS_TYPE === 'win') {
+                //sysKey = Option for mac and Alt for win
                 tabSwitchAllowed =
                     ((settings.sysKey === 'Meta' &&
                         e.metaKey &&
                         !e.ctrlKey &&
                         !e.altKey) ||
-                        (settings.sysKey === 'Option' &&
+                        (((settings.sysKey === 'Option' &&
+                            this.OS_TYPE === 'mac') ||
+                            (settings.sysKey === 'Alt' &&
+                                this.OS_TYPE === 'win')) &&
                             e.altKey &&
                             !e.ctrlKey &&
                             !e.metaKey) ||

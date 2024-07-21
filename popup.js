@@ -174,7 +174,12 @@ class Popup {
         chrome.storage.sync.set({ settings: this.settings })
 
         //this message will update cached settings in background worker
-        chrome.runtime.sendMessage({ message: 'getSettings' })
+        chrome.runtime.sendMessage({
+            type: 'settingsUpdated',
+            sender: 'pega-extension',
+        })
+
+        console.log('chrome message sent')
     }
 
     //get settings from storage and set to the settings on context

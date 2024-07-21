@@ -49,3 +49,19 @@ Extension settings synced between browsers
 #How to start development
 
 1. Reinstall the extension
+
+#TODO:
+
+1. check tab switch with different shortcuts for win and mac
+2. make new shortcut work without pega page refresh. party implemented, look at getExtensionSettings() definition. but it's dev portal's initiative, should be popup's
+
+#architecture
+#API messages types
+
+-   bakcground.js worker subscribed to getSettings message (chrome.runtime.onMessage)
+    returns extension settings by request
+-   push messages from popup scripts on settins update - implemented in setExtensionSettings() function - sends chrome.runtime.sendMessage({
+    type: 'settingsUpdated',
+    sender: 'pega-extension',
+    })
+    all push notifiacations should have sender = 'pega-extension'

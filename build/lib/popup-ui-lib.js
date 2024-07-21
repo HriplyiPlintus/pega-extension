@@ -245,14 +245,16 @@ function settingTabSwitchShortcut(context) {
             context.OS_TYPE
         ].sysKeyDisplay(
             shortcut.sysKey === 'Meta',
-            ['Ctrl', 'Alt'].includes(shortcut.sysKey), //Ctrl for mac, Alt for win
-            ['Option', 'Ctrl'].includes(shortcut.sysKey)
+            ['Ctrl'].includes(shortcut.sysKey), //Ctrl for mac, Alt for win
+            ['Option', 'Alt'].includes(shortcut.sysKey)
         )
 
         //create separate function to display hotkey
         tabSwitchInput.value = `${sysKeyToDisplay.display}${
             context.OS_TYPE !== 'mac' ? ' + ' : ''
         }${shortcut.key.toUpperCase()}`
+
+        console.log('tabswitchinput.value', tabSwitchInput.value)
 
         tabSwitchInput.dataset.hotkey = JSON.stringify(shortcut)
 

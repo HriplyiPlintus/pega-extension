@@ -88,6 +88,17 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         type: "trace_details"
     })
     */
+
+    console.log('processedTabs', processedTabs)
+})
+
+//remove tabs from the array of processed tabs when tab's closed
+chrome.tabs.onRemoved.addListener((tabId, info) => {
+    const index = processedTabs.indexOf(tabId)
+
+    processedTabs.splice(index, 1)
+
+    console.log('removed processedTabs', processedTabs)
 })
 
 //injects js into content page. used in content-checker.js
@@ -129,6 +140,7 @@ function injectCSS(tabId) {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const tabId = sender?.tab?.id
 
+    console.log('message received', message)
     //request for extension settings from content script
     if (message.message === 'getSettings') {
         let payload = getExtensionSettings()
@@ -138,6 +150,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 payload: payload,
             })
         }
+    } else if (
+        message.type === 'settingsUpdated' &&
+        message.sender === 'pega-extension'
+    ) {
+        //loop through all processed tabs and send a message to update settings
+        for (const t of processedTabs) {
+            chrome.tabs.sendMessage(t, {
+                type: 'settingsUpdated',
+                sender: 'pega-extension',
+            })
+        }
+
+        console.log('message sent', {
+            type: 'settingsUpdated',
+            sender: 'pega-extension',
+            tabId: t,
+        })
     }
 
     if (tabId && message.script) {
