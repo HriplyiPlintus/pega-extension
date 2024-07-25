@@ -312,7 +312,7 @@ if (typeof Tabs !== 'function') {
                         message.type === 'settingsUpdated' &&
                         message.sender === 'pega-extension'
                     ) {
-                        getExtensionSettings()
+                        this.getExtensionSettings()
                     }
                 }
             )

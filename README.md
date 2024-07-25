@@ -1,6 +1,6 @@
 #Implemented features
 
--   Tab refresh from icon
+-   Pega tab refresh icon
     -   Application definition
     -   Branch
 -   Tag icon on rule form - copies rule signature to clipboard. By default rule signature is a combination of most importand rule info attributes e.g.
@@ -14,6 +14,7 @@
 -   Toggle Pega rulesets in Tracer settings
 -   Most useful pages pinned in Clipboard viewer - by default: pyWorkPage, pyWorkCover, newAssignPage, pyDisplayHarness, RH_1
 -   Reorder tabs by drag and drop
+-   Settings change applies instantly without browser tab refresh
 
 #To be implemented:
 
@@ -65,3 +66,9 @@ Extension settings synced between browsers
     sender: 'pega-extension',
     })
     all push notifiacations should have sender = 'pega-extension'
+
+#worker
+
+-   injects static files only on tab load event, tab activation shouldn't do anything because current code wasn't designed in a singleton way i.e. new extension load won't substitute extention artefacts on the tab, but just add new ones
+
+-   there is a follback script for the pages that not identified by title it's content-checker.js

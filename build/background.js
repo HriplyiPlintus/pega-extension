@@ -36,19 +36,21 @@ function setExtensionStatusIcon() {
     })
 }
 
-//decides what script to inject and when
+//tab loading event: fresh load/refresh
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     setExtensionStatusIcon()
 
-    if (processedTabs.includes(tabId)) {
-        return
-    } else if (tab.title.includes('Properties on Page TraceEvent')) {
+    //exit if tab already processed
+    if (processedTabs.includes(tabId)) return
+
+    processedTabs.push(tabId)
+
+    if (tab.title.includes('Properties on Page TraceEvent')) {
         injectJavascript(tabId, [
             './build/lib/sqlformatter.min.js',
             './build/content_scripts/tracer-sql-with-inserts.js',
         ])
         injectCSS(tabId)
-        processedTabs.push(tabId)
     } else if (tab.title.includes('Properties on Page ')) {
         //context page data representation
         injectJavascript(tabId, [
@@ -56,21 +58,19 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         ])
 
         injectCSS(tabId)
-        processedTabs.push(tabId)
     } else if (
         tab.title.includes('Tracer - PegaRULES') &&
         changeInfo.status &&
         changeInfo.status === 'complete'
     ) {
         injectJavascript(tabId, ['./build/content_scripts/tracer.js'])
-        processedTabs.push(tabId)
     } else if (
         tab.title.includes('Tracer Settings') &&
         changeInfo.status &&
         changeInfo.status === 'complete'
     ) {
         injectJavascript(tabId, ['./build/content_scripts/tracer-settings.js'])
-        processedTabs.push(tabId)
+
         injectCSS(tabId)
     } else if (
         tab.title.includes('Clipboard Viewer') &&
@@ -78,18 +78,16 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         changeInfo.status === 'complete'
     ) {
         injectJavascript(tabId, ['./build/content_scripts/clipboard.js'])
-        processedTabs.push(tabId)
     } else if (changeInfo.status && changeInfo.status === 'complete') {
         injectJavascript(tabId, ['./build/content-checker.js'])
+    } else {
+        processedTabs.pop(tabId) //tab might not be ready yet and should be processed later
     }
 
-    /*
-    chrome.tabs.sendMessage(tabId, {
-        type: "trace_details"
+    console.log('tab loading event. tabId', {
+        tabid: tabId,
+        status: changeInfo.status,
     })
-    */
-
-    console.log('processedTabs', processedTabs)
 })
 
 //remove tabs from the array of processed tabs when tab's closed
@@ -103,6 +101,7 @@ chrome.tabs.onRemoved.addListener((tabId, info) => {
 
 //injects js into content page. used in content-checker.js
 function injectJavascript(tabId, jsFilesArr, callback) {
+    console.log('injecting', jsFilesArr)
     chrome.scripting
         .executeScript({
             target: { tabId: tabId },
@@ -160,13 +159,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 type: 'settingsUpdated',
                 sender: 'pega-extension',
             })
-        }
 
-        console.log('message sent', {
-            type: 'settingsUpdated',
-            sender: 'pega-extension',
-            tabId: t,
-        })
+            console.log('message sent', {
+                type: 'settingsUpdated',
+                sender: 'pega-extension',
+                tabId: t,
+            })
+        }
     }
 
     if (tabId && message.script) {
