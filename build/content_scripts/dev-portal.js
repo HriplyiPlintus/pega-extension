@@ -36,7 +36,9 @@ if (typeof Tabs !== 'function') {
             }
 
             //get os type. try to get value from local storage first
-            let osType = navigator.userAgentData.platform.toLowerCase()
+            let osType =
+                navigator.userAgentData?.platform.toLowerCase() ||
+                navigator.platform.toLowerCase() //old browsers support
             if (osType.includes('mac')) {
                 osType = 'mac'
             } else if (osType.includes('win')) {
@@ -361,7 +363,25 @@ if (typeof Tabs !== 'function') {
                 element.dataset.tooltip = tooltip
 
                 element.addEventListener('click', () => {
-                    navigator.clipboard.writeText(textToCopy)
+                    if (navigator.clipboard) {
+                        navigator.clipboard.writeText(textToCopy)
+                    } else {
+                        //workaround for not secured context where clipboard api doesn't work
+                        const currentActiveElement = document.activeElement
+
+                        const copyTextArea = document.createElement('textarea')
+                        copyTextArea.value = textToCopy
+                        document.body.appendChild(copyTextArea)
+                        copyTextArea.focus({ preventScroll: true })
+                        copyTextArea.select()
+                        try {
+                            document.execCommand('copy')
+                        } catch (err) {
+                            console.error('Unable to copy to clipboard', err)
+                        }
+                        document.body.removeChild(copyTextArea)
+                        currentActiveElement.focus({ preventScroll: true })
+                    }
 
                     const copyDonePopup = document.createElement('div')
                     copyDonePopup.classList.add(

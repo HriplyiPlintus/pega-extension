@@ -111,7 +111,28 @@ function renderClipboardJSONMarkup(clipboardObj) {
 
     return { tag: 'ul', content: markup }
 }
-//TODO: create flat representation of clipboard. this will allow to search fro keys or/and values
+
+function buildTree(clipboardData){
+    let resultTree = null
+
+    const renderLayer = (layerData)=> {
+for(const p of layerData.properties){
+    
+}
+    }
+
+    for(const p of clipboardData.properties){
+        if (p.type === 'page'){
+            for(const ip of p.properties){
+
+            }
+        }
+    }
+
+    return resultTree
+}
+
+//TODO: create flat representation of clipboard. this will allow to search for keys or/and values
 
 //template engine
 function templateEngine(block) {
