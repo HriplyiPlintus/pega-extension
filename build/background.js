@@ -41,7 +41,12 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     setExtensionStatusIcon()
 
     //exit if tab already processed
-    if (processedTabs.includes(tabId)) return
+    if (processedTabs.includes(tabId)) {
+        console.log('this tab is already processed: ' + tabId, changeInfo)
+        return
+    }
+
+    console.log('before all processed tabs', processedTabs)
 
     processedTabs.push(tabId)
 
@@ -80,14 +85,10 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         injectJavascript(tabId, ['./build/content_scripts/clipboard.js'])
     } else if (changeInfo.status && changeInfo.status === 'complete') {
         injectJavascript(tabId, ['./build/content-checker.js'])
+        processedTabs.pop(tabId) //tab might not be ready yet and should be processed later
     } else {
         processedTabs.pop(tabId) //tab might not be ready yet and should be processed later
     }
-
-    console.log('tab loading event. tabId', {
-        tabid: tabId,
-        status: changeInfo.status,
-    })
 })
 
 //remove tabs from the array of processed tabs when tab's closed
@@ -101,7 +102,6 @@ chrome.tabs.onRemoved.addListener((tabId, info) => {
 
 //injects js into content page. used in content-checker.js
 function injectJavascript(tabId, jsFilesArr, callback) {
-    console.log('injecting', jsFilesArr)
     chrome.scripting
         .executeScript({
             target: { tabId: tabId },
@@ -170,10 +170,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     if (tabId && message.script) {
         injectJavascript(tabId, [`./build/content_scripts/${message.script}`])
+
+        if (!processedTabs.includes(tabId)) {
+            processedTabs.push(tabId)
+        }
     }
 
     if (tabId && message.styles) {
         injectCSS(tabId)
+
+        if (!processedTabs.includes(tabId)) {
+            processedTabs.push(tabId)
+        }
     }
 })
 

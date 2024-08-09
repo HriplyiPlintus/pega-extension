@@ -40,7 +40,7 @@ function renderMakrupFromJSON(contextPageJSON) {
     originalBody.classList.add(
         'pega-extension__tracer-context-page_body-original'
     )
-    console.log('hello from tracer-context-page', originalBody)
+
     originalBody.style.display = 'none' //TODO: test
 
     originalBody.parentElement.appendChild(
