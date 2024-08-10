@@ -4,7 +4,7 @@
     -   Application definition
     -   Branch
 -   Tag icon on rule form - copies rule signature to clipboard. By default rule signature is a combination of most importand rule info attributes e.g.
-    > <rule_type> <class>.<name>
+    > rule_type class.name
 -   Key icon on rule form - copies rule pzInsKey to clipboard.
 -   Tab switch - allows to switch instantly between two most recent tabs. Hotkey configuration available from extension popup and separate for different os types
     known bugs: - Sometimes not switching to New rule tab (not saved rule) - Sometimes not switching from section rule
