@@ -99,9 +99,9 @@ function addSqlWithInserts() {
                 )
 
                 copiedIcon.classList.add(
-                    'pega-extension__tracer-event-sql-inserts-icon-copied'
+                    'pe__tracer-event-sql-inserts-icon-copied'
                 )
-                copiedIcon.classList.add('pega-extension__display-none') //not visible by default
+                copiedIcon.classList.add('pe__display-none') //not visible by default
 
                 const copyIconWrapper = document.createElement('div') //for tooltips support
                 copyIconWrapper.appendChild(copyIcon)
@@ -150,11 +150,9 @@ function addSqlWithInserts() {
                                     '.pega-extension__tracer-event-sql-icons-wrapper'
                                 )
                                 ?.querySelectorAll(
-                                    '.pega-extension__tracer-event-sql-inserts-icon-copy, .pega-extension__tracer-event-sql-inserts-icon-copied'
+                                    '.pega-extension__tracer-event-sql-inserts-icon-copy, .pe__tracer-event-sql-inserts-icon-copied'
                                 )) {
-                                ci.classList.toggle(
-                                    'pega-extension__display-none'
-                                )
+                                ci.classList.toggle('pe__display-none')
                             }
                         }
                         toggleIconCopyVisibility()

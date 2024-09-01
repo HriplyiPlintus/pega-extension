@@ -1,6 +1,10 @@
 //trace context page viewer popup
 let clipboardJSON = null
 
+//TODO: test
+const testvalue = true
+//if (testvalue) return
+
 if (document.readyState !== 'loading') {
     clipboardJSON = contextPageToJSON()
 } else {
@@ -13,6 +17,90 @@ if (document.readyState !== 'loading') {
 function applyDefaultSettings() {}
 
 renderMakrupFromJSON(clipboardJSON)
+
+//TODO: test
+const appendChangeViewButton = () => {
+    const btnWrapper = document.createElement('div')
+    btnWrapper.classList.add('pe__tcp_change-view')
+
+    const createImgElement = (imgURL, imgClass, imgTitle) => {
+        const img = document.createElement('img')
+        img.setAttribute('src', chrome.runtime.getURL(imgURL))
+        img.setAttribute('title', imgTitle ?? '')
+        img.classList.add(imgClass)
+
+        return img
+    }
+
+    btnWrapper.appendChild(
+        createImgElement(
+            './assets/img/messy.png',
+            'pe__tcp-view-messy',
+            'Messy view'
+        )
+    )
+
+    const tidyViewImg = createImgElement(
+        './assets/img/tidy.png',
+        'pe__tcp-view-tidy',
+        'Tidy and shiny view'
+    )
+
+    //TODO: this decision should be made from config
+    tidyViewImg.classList.add('pe__display-none')
+
+    btnWrapper.appendChild(tidyViewImg)
+
+    //append change view button to the visible body
+    document
+        .querySelector('body:not(.pe__display-none)')
+        ?.appendChild(btnWrapper)
+
+    //switch view
+    btnWrapper.addEventListener('click', (e) => {
+        e.stopPropagation()
+        e.preventDefault()
+
+        const tidyViewBody = document.querySelector('body.pe__tcp_body-tidy')
+        const messyViewBody = document.querySelector('body.pe__tcp_body-messy')
+
+        const switchVisibility = (el, hideBool) => {
+            if (hideBool) {
+                el?.classList.add('pe__display-none')
+            } else {
+                el?.classList.remove('pe__display-none')
+            }
+        }
+
+        if (e.target.classList?.contains('pe__tcp-view-messy')) {
+            switchVisibility(e.target, true)
+
+            switchVisibility(
+                e.target.parentElement.querySelector('.pe__tcp-view-tidy'),
+                false
+            )
+
+            //make visible tidy view body
+            switchVisibility(tidyViewBody, true)
+            switchVisibility(messyViewBody, false)
+
+            messyViewBody.appendChild(btnWrapper)
+        } else {
+            switchVisibility(e.target, true)
+            switchVisibility(
+                e.target.parentElement.querySelector('.pe__tcp-view-messy'),
+                false
+            )
+
+            switchVisibility(messyViewBody, true)
+            switchVisibility(tidyViewBody, false)
+
+            tidyViewBody.appendChild(btnWrapper)
+        }
+    })
+}
+
+appendChangeViewButton()
 
 //resize event hadling
 window.addEventListener('resize', (e) => {
@@ -37,24 +125,28 @@ function renderMakrupFromJSON(contextPageJSON) {
 
     //add custom class to control visibility later
     const originalBody = document.querySelector('body')
-    originalBody.classList.add(
-        'pega-extension__tracer-context-page_body-original'
-    )
+    originalBody.classList.add('pe__tcp_body-messy')
 
-    originalBody.style.display = 'none' //TODO: test
+    originalBody.classList.add('pe__display-none') //TODO: test
 
     originalBody.parentElement.appendChild(
         templateEngine({
             tag: 'body',
-            cls: 'pega-extension__tcp_body',
+            cls: 'pe__tcp_body-tidy',
             content: [
                 {
                     tag: 'header',
                     content: [
                         {
                             tag: 'div',
-                            content: `Properties on Page Trace Event [${contextPageJSON['page-title']}]`,
-                            cls: ['pega-extension__tcp_header'],
+                            content: [
+                                {
+                                    tag: 'div',
+                                    content: `Properties on Page Trace Event [${contextPageJSON['page-title']}]`,
+                                    cls: 'pe__tcp_header-title',
+                                },
+                            ],
+                            cls: ['pe__tcp_header'],
                         },
                     ],
                 },
@@ -70,7 +162,7 @@ function renderMakrupFromJSON(contextPageJSON) {
                         },
                         {
                             tag: 'div',
-                            cls: 'pega-extension__tcp_resizable-handle',
+                            cls: 'pe__tcp_resizable-handle',
                         },
                         { tag: 'div', content: clipboardJSONMarkup }, //draw hierarchical table here in format of <ul><li></li></ul>
                     ],
@@ -81,14 +173,24 @@ function renderMakrupFromJSON(contextPageJSON) {
             ],
         })
     )
+
+    resizableBarHandler() //initialize resizable bar
 }
 
 //TODO: test
 function renderClipboardJSONMarkup(clipboardObj) {
     const markup = []
 
-    for (const p of clipboardObj.properties) {
+    console.log('received', clipboardObj)
+
+    for (const p of clipboardObj.value) {
         if (p.type === 'page') {
+            //TODO: test recursion. loop through all values and to the tree if it's a page
+
+            console.log('sending ', p)
+            const nestedPages = renderClipboardJSONMarkup(p)
+            console.log(`result for ${p.key}`, nestedPages)
+
             markup.push({
                 tag: 'li',
                 content: [
@@ -106,30 +208,14 @@ function renderClipboardJSONMarkup(clipboardObj) {
                     },
                 ],
             })
-        }
-    }
 
-    return { tag: 'ul', content: markup }
-}
-
-function buildTree(clipboardData){
-    let resultTree = null
-
-    const renderLayer = (layerData)=> {
-for(const p of layerData.properties){
-    
-}
-    }
-
-    for(const p of clipboardData.properties){
-        if (p.type === 'page'){
-            for(const ip of p.properties){
-
+            if (nestedPages.content?.length !== 0) {
+                markup[markup.length - 1].content.push(nestedPages)
             }
         }
     }
 
-    return resultTree
+    return { tag: 'ul', content: markup }
 }
 
 //TODO: create flat representation of clipboard. this will allow to search for keys or/and values
@@ -282,9 +368,74 @@ function contextPageToJSON() {
         'page-title': table.querySelector(
             '.dialogSubHeaderBackground .dialogSubHeader'
         )?.innerText,
-        properties: collectPageAttributes(table),
+        value: collectPageAttributes(table),
     }
 
     console.log('final result', result)
+
     return result
+}
+
+//handles resizable bar click and move
+function resizableBarHandler() {
+    let offsetX = 0 //required for resize bar move
+    let isClicked = false
+    const variables = getComputedStyle(
+        document.querySelector('.pe__tcp_body-tidy')
+    )
+
+    /* it would be much straightforward to get these data from the markup but 
+    the markup not always exist at required time */
+    const asideWidth = (
+        variables.getPropertyValue('--aside-width') ?? '250px'
+    ).replace(/\D/g, '')
+
+    const barHandlerWidth = (
+        variables.getPropertyValue('--bar-width') ?? '7px'
+    ).replace(/\D/g, '')
+
+    const aside = document.querySelector('aside')
+
+    const handle = document.querySelector('.pe__tcp_resizable-handle')
+
+    handle.addEventListener('mousedown', (e) => {
+        isClicked = true
+        offsetX = handle.offsetLeft - e.clientX
+
+        e.preventDefault()
+        e.stopPropagation()
+    })
+
+    document.addEventListener('mouseup', () => {
+        isClicked = false
+    })
+
+    document.addEventListener('mousemove', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+
+        if (!isClicked) return
+
+        const x = e.clientX
+
+        if (x <= asideWidth) {
+            handle.style.left = `${asideWidth}px`
+            aside.style.width = `${asideWidth}px`
+
+            return
+        } else if ((x / window.outerWidth) * 100 >= 90) {
+            handle.style.left = `calc(90% - 2 * ${barHandlerWidth}px)`
+            aside.style.width = `calc(90% - ${barHandlerWidth}px)`
+
+            return
+        }
+
+        let handleLeft = x + offsetX - 2 * barHandlerWidth
+        handleLeft = handleLeft <= asideWidth ? asideWidth : handleLeft //prevent shaking on edges
+
+        handle.style.left = `${handleLeft}px`
+        aside.style.width = `${
+            parseInt(handleLeft) + parseInt(barHandlerWidth)
+        }px`
+    })
 }

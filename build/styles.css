@@ -137,7 +137,7 @@
 }
 
 .pega-extension__tracer-event-sql-inserts-icon-copy,
-.pega-extension__tracer-event-sql-inserts-icon-copied {
+.pe__tracer-event-sql-inserts-icon-copied {
     position: absolute;
     height: 2em;
     cursor: pointer;
@@ -160,7 +160,7 @@
     margin-top: 0.5em;
 }
 
-.pega-extension__display-none {
+.pe__display-none {
     display: none;
 }
 
@@ -168,19 +168,33 @@
     opacity: 0.2;
 }
 
+/* Tracer context page variables */
+.pe__tcp_body-tidy,
+.pe__tcp_body-messy {
+    --aside-width: 250px; /* aside panel's min width */
+    --bar-width: 7px; /* resizable bar width */
+    --top-menu-height: 35px;
+    --change-view-width: 31px;
+    --change-view-right: 6px;
+}
+
 /* Tracer context page classes: header */
-.pega-extension__tcp_header {
+.pe__tcp_header {
     background-color: #232530;
-    height: 35px;
-    line-height: 35px;
+    height: var(--top-menu-height);
+    line-height: var(--top-menu-height);
     padding-left: 1em;
+}
+
+.pe__tcp_header-title {
     text-overflow: ellipsis;
     overflow: hidden;
     text-wrap: nowrap;
+    width: calc(100% - var(--change-view-width) - var(--change-view-right));
 }
 
 /* Tracer context page classes: body */
-.pega-extension__tcp_body,
+.pe__tcp_body-tidy,
 .pega-extension__tcp_search_input {
     margin: 0px;
     font-size: 14px;
@@ -190,16 +204,16 @@
 }
 
 /* Tracer context page classes: aside */
-.pega-extension__tcp_body aside {
+.pe__tcp_body-tidy aside {
     padding: 7px 11px 0 7px;
     background-color: rgb(240, 240, 240);
-    min-width: calc(250px + 7px); /* 7px is resizable bar width */
-    width: calc(250px + 7px);
-    min-height: calc(100% - 35px);
-    overflow: hidden;
+    min-width: calc(var(--aside-width) + var(--bar-width));
+    width: calc(var(--aside-width) + var(--bar-width));
+    min-height: calc(100% - var(--top-menu-height));
+    overflow: scroll;
 }
 
-.pega-extension__tcp_body > * {
+.pe__tcp_body-tidy > * {
     box-sizing: border-box;
 }
 
@@ -226,14 +240,43 @@
     outline-offset: -2px;
 }
 
-.pega-extension__tcp_resizable-handle {
-    width: 7px;
+.pe__tcp_resizable-handle {
+    width: var(--bar-width);
     position: absolute;
     background-color: #e6e6e6;
-    height: calc(100% - 35px);
-    top: 35px;
-    left: 250px;
+    height: calc(100% - var(--top-menu-height));
+    top: var(--top-menu-height);
+    left: var(--aside-width);
     cursor: ew-resize;
+}
+
+.pe__tcp_change-view {
+    display: flex;
+    flex-direction: row;
+    box-sizing: border-box;
+    position: absolute;
+    right: var(--change-view-right);
+    top: 2px;
+    width: var(--change-view-width);
+    height: var(--change-view-width);
+    border: 1px solid transparent;
+    filter: invert(100%) sepia(0%) saturate(7499%) hue-rotate(163deg)
+        brightness(107%) contrast(101%); /* grey by default */
+    z-index: 1000;
+    opacity: 0.5;
+}
+
+.pe__tcp_body-messy
+    .dialogHeaderBackground
+    > table
+    > tbody
+    > tr:nth-child(2)
+    > td {
+    padding: 0;
+}
+
+.pe__tcp_change-view:hover {
+    opacity: 1;
 }
 
 .pi-tracer::before {

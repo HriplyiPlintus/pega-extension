@@ -55,6 +55,8 @@ Extension settings synced between browsers
 
 1. check tab switch with different shortcuts for win and mac
 2. make new shortcut work without pega page refresh. party implemented, look at getExtensionSettings() definition. but it's dev portal's initiative, should be popup's
+3. clipboard pages prioritization doesn't work properly in VDI. double check
+4. implement decode base64 functionality for any selected text - like confluence comments work - https://stackoverflow.com/a/64513026/17654999
 
 #architecture
 #API messages types
