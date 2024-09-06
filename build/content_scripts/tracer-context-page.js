@@ -13,10 +13,10 @@ if (document.readyState !== 'loading') {
     })
 }
 
+console.log(clipboardJSON)
+
 //TODO: impmlement. applies default settings
 function applyDefaultSettings() {}
-
-renderMakrupFromJSON(clipboardJSON)
 
 //TODO: test
 const appendChangeViewButton = () => {
@@ -100,7 +100,9 @@ const appendChangeViewButton = () => {
     })
 }
 
-appendChangeViewButton()
+//appendChangeViewButton()
+
+renderMakrupFromJSON(clipboardJSON)
 
 //resize event hadling
 window.addEventListener('resize', (e) => {
@@ -118,10 +120,8 @@ function renderMakrupFromJSON(contextPageJSON) {
         }, 100)
         return
     }
-    window._clipboardJSON = contextPageJSON //TODO: remove. it's for tests only
 
     const clipboardJSONMarkup = renderClipboardJSONMarkup(contextPageJSON)
-    console.log('clipboardJSONMarkup', clipboardJSONMarkup)
 
     //add custom class to control visibility later
     const originalBody = document.querySelector('body')
@@ -129,7 +129,7 @@ function renderMakrupFromJSON(contextPageJSON) {
 
     originalBody.classList.add('pe__display-none') //TODO: test
 
-    originalBody.parentElement.appendChild(
+    const tidyViewBody = originalBody.parentElement.appendChild(
         templateEngine({
             tag: 'body',
             cls: 'pe__tcp_body-tidy',
@@ -142,7 +142,7 @@ function renderMakrupFromJSON(contextPageJSON) {
                             content: [
                                 {
                                     tag: 'div',
-                                    content: `Properties on Page Trace Event [${contextPageJSON['page-title']}]`,
+                                    content: `Properties on Page TraceEvent [${contextPageJSON['key']}]`,
                                     cls: 'pe__tcp_header-title',
                                 },
                             ],
@@ -151,65 +151,171 @@ function renderMakrupFromJSON(contextPageJSON) {
                     ],
                 },
                 {
-                    tag: 'aside',
+                    tag: 'div',
+                    cls: 'pe__tcp_body',
                     content: [
                         {
-                            tag: 'input',
-                            cls: 'pega-extension__tcp_search_input',
-                            attrs: {
-                                placeholder: 'Search within this context',
-                            },
+                            tag: 'aside',
+                            content: [
+                                {
+                                    tag: 'input',
+                                    cls: 'pe__tcp_search_input',
+                                    attrs: {
+                                        placeholder:
+                                            'Search within this context',
+                                    },
+                                },
+                                {
+                                    tag: 'div',
+                                    cls: 'pe__tcp_resizable-handle',
+                                },
+                                {
+                                    tag: 'div',
+                                    content: clipboardJSONMarkup,
+                                    cls: 'pe__tcp_tree',
+                                }, //draw hierarchical table here in format of <ul><li></li></ul>
+                            ],
                         },
                         {
-                            tag: 'div',
-                            cls: 'pe__tcp_resizable-handle',
+                            tag: 'main',
+                            content: {
+                                tag: 'table',
+                            },
                         },
-                        { tag: 'div', content: clipboardJSONMarkup }, //draw hierarchical table here in format of <ul><li></li></ul>
                     ],
-                },
-                {
-                    tag: 'main',
                 },
             ],
         })
     )
 
+    //click event handler. responsible for tree nodes behavior
+    tidyViewBody
+        .querySelector('aside .pe__tcp_tree')
+        ?.addEventListener('click', (e) => {
+            e.preventDefault()
+            e.stopPropagation()
+
+            const target = e.target
+            if (
+                target.matches(
+                    '.pe__tcp_tree-node-btn-expand, .pe__tcp_tree-node-btn-collapse'
+                )
+            ) {
+                /* this part is responsible for expand/collapse buttons
+                click only expands underlaying pages without showing properties */
+                console.log('expand', target.closest('li').querySelector('ul'))
+
+                if (target.classList.contains('pe__tcp_tree-node-btn-expand')) {
+                    target.classList.remove('pe__tcp_tree-node-btn-expand')
+                    target.classList.add('pe__tcp_tree-node-btn-collapse')
+
+                    target
+                        .closest('li')
+                        .querySelector('ul')
+                        ?.classList.remove('pe__tcp_hidden')
+                } else {
+                    target.classList.add('pe__tcp_tree-node-btn-expand')
+                    target.classList.remove('pe__tcp_tree-node-btn-collapse')
+
+                    target
+                        .closest('li')
+                        .querySelector('ul')
+                        ?.classList.add('pe__tcp_hidden')
+                }
+            } else if (
+                target.matches('.pe__tcp_tree-node-wrapper') ||
+                target.parentElement.matches('.pe__tcp_tree-node-wrapper')
+            ) {
+                //responsible for showing page contents
+                const nodeElement = target.closest('.pe__tcp_tree-node-wrapper')
+
+                if (!nodeElement) return
+
+                const selectedNodes = tidyViewBody.querySelectorAll(
+                    'aside .pe__tcp_tree .pe__tcp_tree-node-clicked'
+                )
+
+                selectedNodes?.forEach((sn) =>
+                    sn.classList.remove('pe__tcp_tree-node-clicked')
+                )
+
+                nodeElement.classList.add('pe__tcp_tree-node-clicked')
+                //show selected page's properties
+                displayPageProperties(nodeElement.dataset?.uri) //TODO: implement
+            }
+        })
+
     resizableBarHandler() //initialize resizable bar
+    appendChangeViewButton() //TODO: probably not the best place
+}
+
+function displayPageProperties(pageName) {
+    console.log('showing page', pageName)
 }
 
 //TODO: test
-function renderClipboardJSONMarkup(clipboardObj) {
+function renderClipboardJSONMarkup(clipboardObj, sumURI) {
     const markup = []
 
-    console.log('received', clipboardObj)
-
     for (const p of clipboardObj.value) {
-        if (p.type === 'page') {
-            //TODO: test recursion. loop through all values and to the tree if it's a page
+        if (p.type === 'page' || p.type === 'list') {
+            const thisURI = sumURI
+                ? sumURI + '.' + p.key
+                : clipboardJSON['key'] + '.' + p.key
 
-            console.log('sending ', p)
-            const nestedPages = renderClipboardJSONMarkup(p)
-            console.log(`result for ${p.key}`, nestedPages)
+            console.log(`key: ${p.key}, thisURI: ${thisURI}`)
+
+            const nestedPages = renderClipboardJSONMarkup(p, thisURI)
+
+            let showExpandBtn = true
+
+            if (
+                Array.isArray(p.value) &&
+                p.value.find((o) => o.type !== 'property') === undefined
+            ) {
+                showExpandBtn = false
+            }
+
+            const liContents = [
+                {
+                    tag: 'div',
+                    cls: showExpandBtn
+                        ? 'pe__tcp_tree-node-btn-expand'
+                        : 'pe__tcp_tree-node-btn-stub',
+                },
+                {
+                    tag: 'div',
+                    cls:
+                        p.type === 'list'
+                            ? 'pe__tcp_tree-list'
+                            : 'pe__tcp_tree-page',
+                },
+                {
+                    tag: 'span',
+                    content: p.class ? `${p.key} (${p.class})` : `${p.key}`,
+                    attrs: {
+                        title: p.class ? `${p.key} (${p.class})` : `${p.key}`,
+                        //TODO: add all property values here
+                    },
+                },
+            ]
 
             markup.push({
                 tag: 'li',
                 content: [
                     {
                         tag: 'div',
-                        content: [
-                            {
-                                tag: 'span',
-                                content: p.key,
-                                attrs: {
-                                    //TODO: add all property values here
-                                },
-                            },
-                        ],
+                        cls: 'pe__tcp_tree-node-wrapper',
+                        content: liContents,
+                        attrs: {
+                            'data-uri': `${thisURI}`,
+                        },
                     },
                 ],
             })
 
             if (nestedPages.content?.length !== 0) {
+                nestedPages.cls = 'pe__tcp_hidden'
                 markup[markup.length - 1].content.push(nestedPages)
             }
         }
@@ -271,7 +377,7 @@ function templateEngine(block) {
 
 /* creates nested JSON from clipboard page
 result structure: {
-    page-title: "",
+    key: "",
     properties: {[]}
 } */
 function contextPageToJSON() {
@@ -281,7 +387,7 @@ function contextPageToJSON() {
 
     /* returns [{key, value, type, class}] for each row in context page viewer
     where 'key' is a name of a property and 'value' is this property value.
-    class is the page class, type is either page of property - for the ease of rendring
+    class is the page class, type is either page or property - for the ease of rendring
     each new page starts from header - tableHeader */
     function collectPageAttributes(tableElement) {
         const tableHeader = tableElement
@@ -332,7 +438,7 @@ function contextPageToJSON() {
                 let pushToResults = result //new context
 
                 if (listName) {
-                    //no list structure created before
+                    //list structure was not created before
                     if (
                         result.length === 0 ||
                         (result.length > 0 &&
@@ -341,7 +447,7 @@ function contextPageToJSON() {
                         result.push({
                             key: listName,
                             value: [],
-                            type: 'page',
+                            type: 'list',
                         })
                     }
 
@@ -365,9 +471,9 @@ function contextPageToJSON() {
     }
 
     const result = {
-        'page-title': table.querySelector(
-            '.dialogSubHeaderBackground .dialogSubHeader'
-        )?.innerText,
+        key: document
+            .querySelector('#topBanner .dialogHeaderLabel')
+            ?.innerText.match(/(?<=\[).*(?=\])/)[0],
         value: collectPageAttributes(table),
     }
 
@@ -378,29 +484,21 @@ function contextPageToJSON() {
 
 //handles resizable bar click and move
 function resizableBarHandler() {
-    let offsetX = 0 //required for resize bar move
+    //let offsetX = 0 //required for resize bar move
     let isClicked = false
-    const variables = getComputedStyle(
-        document.querySelector('.pe__tcp_body-tidy')
-    )
 
     /* it would be much straightforward to get these data from the markup but 
     the markup not always exist at required time */
-    const asideWidth = (
-        variables.getPropertyValue('--aside-width') ?? '250px'
-    ).replace(/\D/g, '')
-
-    const barHandlerWidth = (
-        variables.getPropertyValue('--bar-width') ?? '7px'
-    ).replace(/\D/g, '')
-
     const aside = document.querySelector('aside')
+    const asideMinWidth = window
+        .getComputedStyle(aside)
+        ?.getPropertyValue('min-width')
+        ?.replace(/[^0-9]./, '')
 
     const handle = document.querySelector('.pe__tcp_resizable-handle')
 
     handle.addEventListener('mousedown', (e) => {
         isClicked = true
-        offsetX = handle.offsetLeft - e.clientX
 
         e.preventDefault()
         e.stopPropagation()
@@ -418,24 +516,17 @@ function resizableBarHandler() {
 
         const x = e.clientX
 
-        if (x <= asideWidth) {
-            handle.style.left = `${asideWidth}px`
-            aside.style.width = `${asideWidth}px`
-
-            return
+        if (x <= asideMinWidth) {
+            //the handle bar can't move to the right less than minimum width of the aside element
+            handle.style.left = 'var(--aside-min-width)'
+            aside.style.width = 'var(--aside-min-width)'
         } else if ((x / window.outerWidth) * 100 >= 90) {
-            handle.style.left = `calc(90% - 2 * ${barHandlerWidth}px)`
-            aside.style.width = `calc(90% - ${barHandlerWidth}px)`
-
-            return
+            //the handle bar can't move to the left more than 90% of the screen width
+            handle.style.left = '90%'
+            aside.style.width = '90%'
+        } else {
+            handle.style.left = `${x}px`
+            aside.style.width = `${x}px`
         }
-
-        let handleLeft = x + offsetX - 2 * barHandlerWidth
-        handleLeft = handleLeft <= asideWidth ? asideWidth : handleLeft //prevent shaking on edges
-
-        handle.style.left = `${handleLeft}px`
-        aside.style.width = `${
-            parseInt(handleLeft) + parseInt(barHandlerWidth)
-        }px`
     })
 }
