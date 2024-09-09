@@ -13,12 +13,11 @@ if (document.readyState !== 'loading') {
     })
 }
 
-console.log(clipboardJSON)
-
 //TODO: impmlement. applies default settings
 function applyDefaultSettings() {}
 
-//TODO: test
+/* adds a button to change view mode between tidy and messy
+selects a page to show context by default */
 const appendChangeViewButton = () => {
     const btnWrapper = document.createElement('div')
     btnWrapper.classList.add('pe__tcp_change-view')
@@ -56,12 +55,13 @@ const appendChangeViewButton = () => {
         .querySelector('body:not(.pe__display-none)')
         ?.appendChild(btnWrapper)
 
+    const tidyViewBody = document.querySelector('body.pe__tcp_body-tidy')
+
     //switch view
     btnWrapper.addEventListener('click', (e) => {
         e.stopPropagation()
         e.preventDefault()
 
-        const tidyViewBody = document.querySelector('body.pe__tcp_body-tidy')
         const messyViewBody = document.querySelector('body.pe__tcp_body-messy')
 
         const switchVisibility = (el, hideBool) => {
@@ -98,11 +98,32 @@ const appendChangeViewButton = () => {
             tidyViewBody.appendChild(btnWrapper)
         }
     })
+
+    //select root page if nothing has being selected
+    if (
+        tidyViewBody.querySelectorAll('.pe__tcp_tree-node-clicked').length === 0
+    ) {
+        tidyViewBody
+            .querySelector('.pe__tcp_tree-node-wrapper[data-uri="root"')
+            ?.click()
+    }
 }
 
-//appendChangeViewButton()
+/* this functions initializes context page view and 
+calls initializer functions in proper order
+renderMakrupFromJSON //renders markup
+appendChangeViewButton //add change view button
+resizableBarHandler //initialize resizable bar
+applyDefaultSettings //applies default settings */
+function initTracerContextPegaView() {
+    renderMakrupFromJSON(clipboardJSON, [
+        appendChangeViewButton,
+        resizableBarHandler,
+        applyDefaultSettings,
+    ])
+}
 
-renderMakrupFromJSON(clipboardJSON)
+initTracerContextPegaView() //entry point
 
 //resize event hadling
 window.addEventListener('resize', (e) => {
@@ -110,14 +131,15 @@ window.addEventListener('resize', (e) => {
     console.log(`widht: ${t.innerWidth} height: ${t.innerHeight}`)
 })
 
-//prepares markup similar to clipboard viewer
-function renderMakrupFromJSON(contextPageJSON) {
+/* prepares markup similar to clipboard viewer
+thenFuArr param makes possible to call next function in synchronous manner */
+function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
     //if context page was not parsed
     if (!contextPageJSON) {
         console.warn('Pega Extension: could not parse context page')
         setTimeout(() => {
-            renderMakrupFromJSON(clipboardJSON)
-        }, 100)
+            renderMakrupFromJSON(clipboardJSON, thenFuArr)
+        }, 20)
         return
     }
 
@@ -178,9 +200,44 @@ function renderMakrupFromJSON(contextPageJSON) {
                         },
                         {
                             tag: 'main',
-                            content: {
-                                tag: 'table',
-                            },
+                            content: [
+                                { tag: 'div', cls: 'pe__tcp_body-tidy-header' },
+                                {
+                                    tag: 'table',
+                                    cls: 'pe__tcp_body-tidy-table',
+                                    content: [
+                                        {
+                                            tag: 'thead',
+                                            content: [
+                                                {
+                                                    tag: 'tr',
+                                                    content: [
+                                                        {
+                                                            tag: 'th',
+                                                            cls: 'pe__tcp-body-tidy-table-column-key',
+                                                            content: {
+                                                                tag: 'div',
+                                                                content:
+                                                                    'Property',
+                                                            },
+                                                        },
+                                                        {
+                                                            tag: 'th',
+                                                            cls: 'pe__tcp-body-tidy-table-column-value',
+                                                            content: {
+                                                                tag: 'div',
+                                                                content:
+                                                                    'Value',
+                                                            },
+                                                        },
+                                                    ],
+                                                },
+                                            ],
+                                        },
+                                        { tag: 'tbody' },
+                                    ],
+                                },
+                            ],
                         },
                     ],
                 },
@@ -203,8 +260,6 @@ function renderMakrupFromJSON(contextPageJSON) {
             ) {
                 /* this part is responsible for expand/collapse buttons
                 click only expands underlaying pages without showing properties */
-                console.log('expand', target.closest('li').querySelector('ul'))
-
                 if (target.classList.contains('pe__tcp_tree-node-btn-expand')) {
                     target.classList.remove('pe__tcp_tree-node-btn-expand')
                     target.classList.add('pe__tcp_tree-node-btn-collapse')
@@ -240,88 +295,235 @@ function renderMakrupFromJSON(contextPageJSON) {
                 )
 
                 nodeElement.classList.add('pe__tcp_tree-node-clicked')
+
                 //show selected page's properties
-                displayPageProperties(nodeElement.dataset?.uri) //TODO: implement
+                displayPageProperties(nodeElement.dataset?.uri)
             }
         })
 
-    resizableBarHandler() //initialize resizable bar
-    appendChangeViewButton() //TODO: probably not the best place
+    //call callback functions in specified order
+    if (Array.isArray(thenFuArr)) {
+        for (const fuToCall of thenFuArr) {
+            if (typeof fuToCall === 'function') {
+                fuToCall()
+            }
+        }
+    }
 }
 
+//displays selected page properties
 function displayPageProperties(pageName) {
-    console.log('showing page', pageName)
+    if (!pageName) return
+
+    const pathToArr = pageName.split('.')
+
+    //this is for clear page path (without redundant parts)
+    let clearPageTitle = ''
+    let prevPageName = ''
+
+    let pageToShow = [clipboardJSON]
+
+    for (const pn of pathToArr) {
+        //context aka root is a special page, it's name could contain dots - separators
+        if (pn === 'root') {
+            pageToShow = pageToShow[0].value
+
+            clearPageTitle = clipboardJSON['key']
+            prevPageName = clipboardJSON['key']
+        } else {
+            const index = pageToShow.findIndex((e) => e.key === pn)
+
+            if (index !== -1) {
+                const thisPageName = pageToShow[index]?.key
+
+                pageToShow = pageToShow[index].value
+
+                if (thisPageName?.replace(/\(.*\)$/, '') === prevPageName) {
+                    clearPageTitle =
+                        clearPageTitle.substring(
+                            0,
+                            clearPageTitle.lastIndexOf('.')
+                        ) + `.${thisPageName}`
+                } else {
+                    clearPageTitle = clearPageTitle + `.${thisPageName}`
+                    prevPageName = thisPageName
+                }
+            }
+        }
+    }
+
+    const propsObjArr = []
+
+    for (const p of pageToShow) {
+        if (p.type === 'property') {
+            propsObjArr.push({
+                tag: 'tr',
+                content: [
+                    {
+                        tag: 'td',
+                        content: {
+                            tag: 'div',
+                            content: p.key,
+                        },
+                    },
+                    {
+                        tag: 'td',
+                        content: {
+                            tag: 'div',
+                            content: p.value,
+                        },
+                    },
+                ],
+            })
+        }
+    }
+
+    const contentsTable = document.querySelector('.pe__tcp_body-tidy-table')
+
+    const oldTbody = contentsTable.querySelector('tbody')
+
+    console.log('show page', pageToShow)
+
+    if (pageToShow.find((pts) => pts.type === 'property') === undefined) {
+        //hide left panel contents if page doesn't have any property
+        contentsTable.classList.add('pe__tcp_hidden')
+    } else {
+        const newTbody = templateEngine({
+            tag: 'tbody',
+            content: propsObjArr,
+        })
+
+        contentsTable.replaceChild(newTbody, oldTbody)
+        contentsTable.classList.remove('pe__tcp_hidden')
+    }
+
+    //update contents title
+    const contentsTitleElement = document.querySelector(
+        'div.pe__tcp_body-tidy-header'
+    )
+
+    if (contentsTitleElement) {
+        //attempt to make clean page reference //TODO:fix
+        let contentsTtitle = clearPageTitle
+        /* document
+            .querySelector('.pe__tcp_tree-node-clicked')
+            ?.dataset.uri?.replace(
+                /(?<=\b)root((?=\..*)|(\b))/,
+                clipboardJSON['key']
+            )
+                */
+
+        contentsTitleElement.innerText = `Clipboard page: ${contentsTtitle}`
+
+        console.log(contentsTtitle)
+    }
 }
 
 //TODO: test
-function renderClipboardJSONMarkup(clipboardObj, sumURI) {
-    const markup = []
+function renderClipboardJSONMarkup(cObj, sURI) {
+    function buildNodeJSONMarkup(clipboardObj, sumURI) {
+        const markup = []
 
-    for (const p of clipboardObj.value) {
-        if (p.type === 'page' || p.type === 'list') {
-            const thisURI = sumURI
-                ? sumURI + '.' + p.key
-                : clipboardJSON['key'] + '.' + p.key
+        for (const p of clipboardObj.value) {
+            if (p.type === 'page' || p.type === 'list') {
+                const thisURI = sumURI
+                    ? sumURI + '.' + p.key
+                    : 'root' /* clipboardJSON['key'] */ + '.' + p.key
 
-            console.log(`key: ${p.key}, thisURI: ${thisURI}`)
+                const nestedPages = buildNodeJSONMarkup(p, thisURI)
 
-            const nestedPages = renderClipboardJSONMarkup(p, thisURI)
+                let showExpandBtn = true
 
-            let showExpandBtn = true
+                if (
+                    Array.isArray(p.value) &&
+                    p.value.find((o) => o.type !== 'property') === undefined
+                ) {
+                    showExpandBtn = false
+                }
 
-            if (
-                Array.isArray(p.value) &&
-                p.value.find((o) => o.type !== 'property') === undefined
-            ) {
-                showExpandBtn = false
-            }
+                const pagePathLabel = p.class
+                    ? `${p.key} (${p.class})`
+                    : `${p.key}`
 
-            const liContents = [
-                {
-                    tag: 'div',
-                    cls: showExpandBtn
-                        ? 'pe__tcp_tree-node-btn-expand'
-                        : 'pe__tcp_tree-node-btn-stub',
-                },
-                {
-                    tag: 'div',
-                    cls:
-                        p.type === 'list'
-                            ? 'pe__tcp_tree-list'
-                            : 'pe__tcp_tree-page',
-                },
-                {
-                    tag: 'span',
-                    content: p.class ? `${p.key} (${p.class})` : `${p.key}`,
-                    attrs: {
-                        title: p.class ? `${p.key} (${p.class})` : `${p.key}`,
-                        //TODO: add all property values here
+                const liContents = [
+                    {
+                        tag: 'div',
+                        cls: showExpandBtn
+                            ? 'pe__tcp_tree-node-btn-expand'
+                            : 'pe__tcp_tree-node-btn-stub',
                     },
-                },
-            ]
+                    {
+                        tag: 'div',
+                        cls:
+                            p.type === 'list'
+                                ? 'pe__tcp_tree-list'
+                                : 'pe__tcp_tree-page',
+                    },
+                    {
+                        tag: 'span',
+                        content: pagePathLabel,
+                        attrs: {
+                            title: pagePathLabel,
+                        },
+                    },
+                ]
 
-            markup.push({
+                markup.push({
+                    tag: 'li',
+                    content: [
+                        {
+                            tag: 'div',
+                            cls: 'pe__tcp_tree-node-wrapper',
+                            content: liContents,
+                            attrs: {
+                                'data-uri': `${thisURI}`,
+                            },
+                        },
+                    ],
+                })
+
+                if (nestedPages.content?.length !== 0) {
+                    nestedPages.cls = 'pe__tcp_hidden'
+                    markup[markup.length - 1].content.push(nestedPages)
+                }
+            }
+        }
+
+        //all contents wrapped in Context page
+        return { tag: 'ul', content: markup }
+    }
+
+    return {
+        tag: 'ul',
+        content: [
+            {
                 tag: 'li',
                 content: [
                     {
                         tag: 'div',
                         cls: 'pe__tcp_tree-node-wrapper',
-                        content: liContents,
-                        attrs: {
-                            'data-uri': `${thisURI}`,
-                        },
+                        attrs: { 'data-uri': 'root' },
+                        content: [
+                            {
+                                tag: 'div',
+                                cls: 'pe__tcp_tree-node-btn-collapse',
+                            },
+                            {
+                                tag: 'div',
+                                cls: 'pe__tcp_tree-page',
+                            },
+                            {
+                                tag: 'span',
+                                content: clipboardJSON.key,
+                                attrs: { title: clipboardJSON.key },
+                            },
+                        ],
                     },
+                    buildNodeJSONMarkup(cObj, sURI),
                 ],
-            })
-
-            if (nestedPages.content?.length !== 0) {
-                nestedPages.cls = 'pe__tcp_hidden'
-                markup[markup.length - 1].content.push(nestedPages)
-            }
-        }
+            },
+        ],
     }
-
-    return { tag: 'ul', content: markup }
 }
 
 //TODO: create flat representation of clipboard. this will allow to search for keys or/and values
@@ -495,6 +697,8 @@ function resizableBarHandler() {
         ?.getPropertyValue('min-width')
         ?.replace(/[^0-9]./, '')
 
+    const main = document.querySelector('.pe__tcp_body-tidy main')
+
     const handle = document.querySelector('.pe__tcp_resizable-handle')
 
     handle.addEventListener('mousedown', (e) => {
@@ -520,13 +724,16 @@ function resizableBarHandler() {
             //the handle bar can't move to the right less than minimum width of the aside element
             handle.style.left = 'var(--aside-min-width)'
             aside.style.width = 'var(--aside-min-width)'
+            main.style.width = '100%' // `calc(${window.outerWidth} - var(--aside-min-width))`
         } else if ((x / window.outerWidth) * 100 >= 90) {
             //the handle bar can't move to the left more than 90% of the screen width
             handle.style.left = '90%'
             aside.style.width = '90%'
+            main.style.width = '10%'
         } else {
             handle.style.left = `${x}px`
             aside.style.width = `${x}px`
+            main.style.width = `calc(100% - ${x}px - var(--bar-width))`
         }
     })
 }
