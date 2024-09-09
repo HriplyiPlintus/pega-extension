@@ -132,16 +132,38 @@ function addSqlWithInserts() {
                             'pega-extension__tracer-event-sql-inserts-icon-copy'
                         )
                     ) {
+                        let textToCopy = ''
                         try {
-                            navigator.clipboard.writeText(
+                            textToCopy =
                                 sqlFormatterGlobalObj.sqlFormatter.format(
                                     enrichedSqlRowData.dataset.query
                                 )
-                            )
                         } catch (error) {
-                            navigator.clipboard.writeText(
-                                enrichedSqlRowData.dataset.query
-                            )
+                            textToCopy = enrichedSqlRowData.dataset.query
+                        }
+
+                        if (navigator.clipboard) {
+                            navigator.clipboard.writeText(textToCopy)
+                        } else {
+                            //workaround for not secured context where clipboard api doesn't work
+                            const currentActiveElement = document.activeElement
+
+                            const copyTextArea =
+                                document.createElement('textarea')
+                            copyTextArea.value = textToCopy
+                            document.body.appendChild(copyTextArea)
+                            copyTextArea.focus({ preventScroll: true })
+                            copyTextArea.select()
+                            try {
+                                document.execCommand('copy')
+                            } catch (err) {
+                                console.error(
+                                    'Unable to copy to clipboard',
+                                    err
+                                )
+                            }
+                            document.body.removeChild(copyTextArea)
+                            currentActiveElement.focus({ preventScroll: true })
                         }
 
                         const toggleIconCopyVisibility = () => {
