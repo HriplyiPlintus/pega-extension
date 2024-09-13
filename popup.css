@@ -24,8 +24,8 @@
 }
 
 .popup {
-    margin-bottom: 20px;
     width: 500px;
+    margin: 0 7px 20px 7px;
 }
 
 .header-navbar {
@@ -356,6 +356,7 @@ input.setting-input-field:hover {
 .setting-item-control {
     display: flex;
     flex-direction: column;
+    justify-content: center;
 }
 
 .control-msg-alert {

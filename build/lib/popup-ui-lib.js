@@ -283,9 +283,9 @@ function settingTabSwitchShortcut(context) {
 /* toggle switch */
 
 /* setting row template
-contains: 
-label           set of controls
-info text */
+label - sets the title of the setting
+infoContentArr - hint under the setting title
+controlContentArr - control markup in a specified format accepted by builder engine */
 function buildSettingRow({ label, infoContentArr, controlContentArr }) {
     const settings = {
         markup: {
@@ -327,19 +327,44 @@ function buildSettingRow({ label, infoContentArr, controlContentArr }) {
     return settings.markup
 }
 
+/* Sets up tracer context page improvements settings
+If current state is not received, false will be used */
 function tracerEventWindowDimensions({
     label,
     infoContentArr,
     controlContentArr,
     renderEngine,
+    currentState,
+    setStateFu,
 }) {
-    //buildSettingRow({ label, infoContentArr, controlContent })
     const markup = buildSettingRow({
-        label: 'Set trace event window dimensions',
-        infoContentArr: ['Leave blank for default settings'],
+        label: 'Tracer context page view improvements',
+        infoContentArr: ['Enables Tidy View and persists window state'],
         controlContentArr: [
             {
-                tag: 'input',
+                tag: 'component',
+                name: 'toggle-switch',
+                params: {
+                    enabled: currentState ? true : false,
+                    eventListersArr: [
+                        {
+                            eventType: 'click',
+                            eventFu: (e) => {
+                                e.stopPropagation()
+                                const target = e.target
+                                if (target.matches('input[type="checkbox"]')) {
+                                    if (target.hasAttribute('checked')) {
+                                        target.removeAttribute('checked')
+                                        setStateFu('tcp-enabled', false)
+                                    } else {
+                                        target.setAttribute('checked', true)
+                                        setStateFu('tcp-enabled', true)
+                                    }
+                                }
+                            },
+                        },
+                    ],
+                },
             },
         ],
     })

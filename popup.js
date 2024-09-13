@@ -1,10 +1,11 @@
 /* main assumption is that user will not change settings in different session while popup is open
-getSettings gets fresh extension settings on load 
+getSettings freshs extension settings on load 
 
 localStorage:
     os-type: mac/win
 
-settins data model
+state is a state manager
+settins data model - settings is synced settings    //TODO: use state manager
 {
     'tab-switch': {
         os_type: {}
@@ -34,7 +35,7 @@ class Popup {
         }
 
         //after this time the popup will open on default tab, otherwise it will open the same tab
-        this.SAME_SESSION_TIMEOUT = 30000
+        this.SAME_SESSION_TIMEOUT = 90000
 
         setInterval(() => {
             this.state.setState('last-access-timestamp', Date.now())
@@ -53,13 +54,12 @@ class Popup {
         //this.renderSettingsScreen()
     }
 
-    /*
-    'popup-state': {
+    /* 'popup-state': {
         navbar: 'projects',
         'current-page': 'projects'
-        'last-access-timestamp': <time_in_ms>
-    }
-    */
+        'last-access-timestamp': <time_in_ms> } */
+    /* state is a locally stored settings, not syncing between browsers
+    used to store only popup state */
     state = {
         setState: (attribute, value) => {
             let currentState = this.state.getState()
@@ -85,6 +85,7 @@ class Popup {
         },
     }
 
+    //stores extension data in settings - essential to main extension purpose
     tabSwitchSettings = {
         mac: {
             allowedSysKeys: ['alt', 'meta', 'control'],
@@ -150,6 +151,7 @@ class Popup {
                 result = ''
             }
 
+            /*
             //BUG settings for clean run is undefined
             if (!this.settings?.['tab-switch']) {
                 this.settings['tab-switch'] = {}
@@ -157,30 +159,130 @@ class Popup {
 
             //update cached settings
             this.settings['tab-switch'][this.OS_TYPE] = result
+            */
 
-            this.setExtensionSettings()
+            //this.setExtensionSettings('tab-switch', result)
+            this.extensionSettings.set('tab-switch', result)
         },
         //BUG breaks for clean installation
         getShortcut: () => {
             console.log('getShortcut', this.settings)
-            return JSON.parse(
+
+            return this.extensionSettings.get('tab-switch') //this.getExtensionSetting('tab-switch')
+
+            /* return JSON.parse(
                 this.settings?.['tab-switch']?.[this.OS_TYPE] || null
-            )
+            ) */
         },
     }
 
-    //refreshes extension settings in sync storage. all updates should happen from this API
-    setExtensionSettings() {
+    /* Updates settings in sync storage and in local copy on [popup].settings
+    also fires a message so background worker can hanle it and path to content scripts */
+    extensionSettings = {
+        set: (key, value) => {
+            if (!key) {
+                console.warn('empty settings key')
+                return
+            }
+
+            //FIXED breaks for clean installation. TODO: not sure if this is required
+            if (!this.settings?.[key]) {
+                this.settings[key] = {}
+            }
+
+            //update cached settings
+            if (key === 'tab-switch') {
+                //OOPS, only for specific key
+                this.settings[key][this.OS_TYPE] = value
+            } else {
+                this.settings[key] = value
+            }
+
+            chrome.storage.sync.set({ settings: this.settings })
+
+            /* this message will update cached settings in background worker
+            here we don't rely on sync, because local changed are sufficient */
+            chrome.runtime.sendMessage({
+                type: 'settingsUpdated',
+                sender: 'pega-extension',
+            })
+        },
+        get: (key) => {
+            if (!key) {
+                console.warn('empty settings key')
+                return
+            }
+
+            let result = null
+
+            if (key === 'tab-switch') {
+                result = JSON.parse(
+                    this.settings?.[key]?.[this.OS_TYPE] || null
+                )
+            } else {
+                result = this.settings?.[key] || null
+            }
+
+            return result
+        },
+    }
+    /* refreshes extension settings in sync storage
+    all updates should happen from this API 
+    also this method fires runtime message */
+    /*
+    setExtensionSettings(settingKey, settingValue) {
+        if (!settingKey) {
+            console.warn('empty settings key')
+            return
+        }
+
+        //FIXED breaks for clean installation. TODO: not sure if this is required
+        if (!this.settings?.[settingKey]) {
+            this.settings[settingKey] = {}
+        }
+
+        //update cached settings
+        if (settingKey === 'tab-switch') {
+            //OOPS, only for specific key
+            this.settings[settingKey][this.OS_TYPE] = settingValue
+        } else {
+            this.settings[settingKey] = settingValue
+        }
+
         chrome.storage.sync.set({ settings: this.settings })
 
-        //this message will update cached settings in background worker
+        /* this message will update cached settings in background worker
+        here we don't rely on sync, because local changed are sufficient */
+    /*
         chrome.runtime.sendMessage({
             type: 'settingsUpdated',
             sender: 'pega-extension',
         })
-
-        console.log('chrome message sent')
     }
+    */
+
+    /*
+    //get setting from local copy of sync storage
+    getExtensionSetting(settingKey) {
+        if (!settingKey) {
+            console.warn('empty settings key')
+            return
+        }
+
+        let result = null
+
+        if (settingKey === 'tab-switch') {
+            result = JSON.parse(
+                this.settings?.[settingKey]?.[this.OS_TYPE] || null
+            )
+        } else {
+            this.settings?.[settingKey] || null
+        }
+
+        console.log('data from get extension settings api function', result)
+        return result
+    }
+        */
 
     //get settings from storage and set to the settings on context
     async getSettings(callback) {
@@ -331,7 +433,9 @@ class Popup {
         }
     }
 
-    //returns component. component is a small resusable part of a page. like in React
+    /* returns component. component is a small resusable part of a page. like in React
+    paramsObj contains additional parameters: eventListersArr - is an arrya of objects
+    {eventType, eventFu} */
     buildComponent(compName, paramsObj) {
         let resultComponent = document.createDocumentFragment()
 
@@ -340,6 +444,8 @@ class Popup {
         if (typeof cls === 'string') {
             cls = [cls]
         }
+
+        let appendedElement = null
 
         switch (compName) {
             case 'header-navbar':
@@ -588,6 +694,8 @@ class Popup {
                 const tracerEventWindowDimensions =
                     popupUILib.tracerEventWindowDimensions({
                         renderEngine: this.templateEngine.bind(this),
+                        currentState: this.extensionSettings.get('tcp-enabled'),
+                        setStateFu: this.extensionSettings.set,
                     })
 
                 resultComponent.appendChild(tracerEventWindowDimensions)
@@ -675,24 +783,29 @@ class Popup {
                 break
             case 'toggle-switch':
                 //toggle switch control
-                const enabled = paramsObj?.enabled
+                const enabled = paramsObj?.enabled //controls the state of the toggle
 
-                resultComponent.appendChild(
+                const toggleElementAttrs = { type: 'checkbox' }
+
+                if (enabled) {
+                    toggleElementAttrs.checked = true
+                }
+
+                //we're appending new child and store it in a separate variable to apply event listeners later
+                appendedElement = resultComponent.appendChild(
                     this.templateEngine({
                         tag: 'label',
                         cls: 'toggle-switch',
                         content: [
                             {
                                 tag: 'input',
-                                attrs: {
-                                    type: 'checkbox',
-                                    checked: enabled ? true : false,
-                                },
+                                attrs: toggleElementAttrs,
                             },
                             { tag: 'span', cls: ['slider', 'round'] },
                         ],
                     })
                 )
+
                 break
             case 'layout-border':
                 //все внутри устанавливается в строчку и добавляет рамку
@@ -717,11 +830,26 @@ class Popup {
         }
 
         const children = paramsObj?.children
-        //ожидает МАССИВ дочерних элементов
+        //expects an array of child elements
         if (children) {
             resultComponent.firstChild.appendChild(
                 this.templateEngine(children)
             )
+        }
+
+        //attaches event listeners. all event listeners come from the ui library normally
+        const eventListersArr = paramsObj?.eventListersArr
+        if (eventListersArr && Array.isArray(eventListersArr)) {
+            for (const el of eventListersArr) {
+                if (
+                    typeof el === 'object' &&
+                    el.eventType &&
+                    el.eventFu &&
+                    typeof el.eventFu === 'function'
+                ) {
+                    appendedElement.addEventListener(el.eventType, el.eventFu)
+                }
+            }
         }
 
         return resultComponent
@@ -977,7 +1105,7 @@ class Popup {
                             {
                                 tag: 'component',
                                 name: 'toggle-switch',
-                                params: { enabled: enabled },
+                                //params: { enabled: enabled },
                             },
                         ],
                     },
@@ -1103,3 +1231,4 @@ chrome.storage.sync.set({
 */
 
 let popup = new Popup(document.querySelector('.popup'))
+window._popup = popup
