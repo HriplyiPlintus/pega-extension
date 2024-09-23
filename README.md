@@ -73,4 +73,16 @@ Extension settings synced between browsers
 
 -   injects static files only on tab load event, tab activation shouldn't do anything because current code wasn't designed in a singleton way i.e. new extension load won't substitute extention artefacts on the tab, but just add new ones
 
--   there is a follback script for the pages that not identified by title it's content-checker.js
+-   there is a fallback script for the pages that not identified by title it's content-checker.js
+-   every time settings got updated, message got sent with type 'settingsUpdate' it causes worker to update settings local copy
+
+sendMessage({
+type: 'settingsSet',
+sender: 'pega-extension',
+payload: {
+key: 'key',
+value: 'value'
+}
+})
+
+-   for now viewMode stored directly in settings with 'tcp-viewMode' key //TODO: include project prefix

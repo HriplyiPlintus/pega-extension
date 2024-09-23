@@ -238,13 +238,14 @@
     font-weight: 600;
     padding: var(--main-margin);
     background-color: rgb(240, 240, 240);
+    width: 100%;
+    min-width: fit-content;
 }
 
 .pe__tcp_body-tidy-header,
 .pe__tcp_body-tidy-table {
     color: #10132e;
     text-align: left;
-    width: 100%;
 }
 
 .pe__tcp_body-tidy-table {
@@ -252,6 +253,7 @@
     font-weight: 400;
     font-size: 14px;
     margin: var(--main-margin);
+    width: 100%;
 }
 
 .pe__tcp_body-tidy-table thead {
@@ -351,6 +353,8 @@
     padding-left: 3px;
     cursor: pointer;
     text-wrap: nowrap;
+    width: fit-content;
+    min-width: 100%;
 }
 
 .pe__tcp_tree-node-wrapper:hover,

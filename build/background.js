@@ -153,7 +153,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         message.type === 'settingsUpdated' &&
         message.sender === 'pega-extension'
     ) {
-        //loop through all processed tabs and send a message to update settings
+        /* loop through all processed tabs and send a message to update settings 
+        also update settings local coppy */
         for (const t of processedTabs) {
             chrome.tabs.sendMessage(t, {
                 type: 'settingsUpdated',
@@ -165,6 +166,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 sender: 'pega-extension',
                 tabId: t,
             })
+        }
+
+        getExtensionSettings()
+    } else if (
+        message.type === 'settingsSet' &&
+        message.sender === 'pega-extension'
+    ) {
+        console.log('====', message)
+        if (message.payload) {
+            updateExtensionSetting(message.payload.key, message.payload.value)
         }
     }
 
@@ -201,6 +212,26 @@ function getExtensionSettings() {
         .catch((err) => console.error('Filed to get extension settings', err))
 
     return extensionSettingsCached
+}
+
+/* set extension settings. some settings saved from content scripts
+ */
+function updateExtensionSetting(key, value) {
+    if (!key) {
+        console.warn('key cannot be empty')
+    }
+
+    chrome.storage.sync.get('settings').then((result) => {
+        const extSettings = result.settings
+        extSettings[key] = value
+
+        chrome.storage.sync.set({ settings: extSettings })
+
+        chrome.runtime.sendMessage({
+            type: 'settingsUpdated',
+            sender: 'pega-extension',
+        })
+    })
 }
 
 //sync between browser should trigger settings refresh. not tested at all

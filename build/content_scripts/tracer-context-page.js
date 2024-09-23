@@ -1,20 +1,48 @@
 //trace context page viewer popup
 let clipboardJSON = null
 
+/* window size change sends messages and updates sync storage
+trottling helps to reduce such chatting
+let trottleSizeSetting = false
+*/
+
 //TODO: test
 const testvalue = true
 //if (testvalue) return
 
-if (document.readyState !== 'loading') {
-    clipboardJSON = contextPageToJSON()
-} else {
-    document.addEventListener('DOMContentLoaded', () => {
-        clipboardJSON = contextPageToJSON()
+//TODO: impmlement. applies default settings
+function applyDefaultSettings() {}
+
+//retrieves extension settings and proceeds with the whole functionality initialization
+const getExtensionSettings = () => {
+    chrome.runtime.sendMessage({ message: 'getSettings' }, (response) => {
+        console.log('settings', response)
+        if (response?.payload) {
+            const payload = response.payload
+
+            const isTCPEnabled = payload['tcp-enabled'] ?? null
+
+            if (isTCPEnabled) {
+                handleResizeEvent()
+
+                if (payload['tcp-windowSize']) {
+                    const windowSize = JSON.parse(payload['tcp-windowSize'])
+
+                    if (windowSize['width'] && windowSize['height']) {
+                        self.resizeTo(windowSize['width'], windowSize['height'])
+                    }
+                }
+
+                //responsible for what view will be displayed. default is OOTB view
+                const selectedView = payload['tcp-viewMode'] ?? 'default'
+
+                initTracerContextPegaView(selectedView)
+            }
+        }
     })
 }
 
-//TODO: impmlement. applies default settings
-function applyDefaultSettings() {}
+getExtensionSettings()
 
 /* adds a button to change view mode between tidy and messy
 selects a page to show context by default */
@@ -45,9 +73,6 @@ const appendChangeViewButton = () => {
         'Tidy and shiny view'
     )
 
-    //TODO: this decision should be made from config
-    tidyViewImg.classList.add('pe__display-none')
-
     btnWrapper.appendChild(tidyViewImg)
 
     //append change view button to the visible body
@@ -72,6 +97,8 @@ const appendChangeViewButton = () => {
             }
         }
 
+        let viewMode = '' //default or tidy. this value will be saved in settings
+
         if (e.target.classList?.contains('pe__tcp-view-messy')) {
             switchVisibility(e.target, true)
 
@@ -85,6 +112,8 @@ const appendChangeViewButton = () => {
             switchVisibility(messyViewBody, false)
 
             messyViewBody.appendChild(btnWrapper)
+
+            viewMode = 'default'
         } else {
             switchVisibility(e.target, true)
             switchVisibility(
@@ -96,10 +125,15 @@ const appendChangeViewButton = () => {
             switchVisibility(tidyViewBody, false)
 
             tidyViewBody.appendChild(btnWrapper)
+
+            viewMode = 'tidy'
         }
+
+        //save viewMode to extension settings
+        setExtSettings('tcp-viewMode', viewMode)
     })
 
-    //select root page if nothing has being selected
+    //select root page if nothing selected
     if (
         tidyViewBody.querySelectorAll('.pe__tcp_tree-node-clicked').length === 0
     ) {
@@ -111,25 +145,56 @@ const appendChangeViewButton = () => {
 
 /* this functions initializes context page view and 
 calls initializer functions in proper order
+initWithView - the view to display on load
 renderMakrupFromJSON //renders markup
 appendChangeViewButton //add change view button
 resizableBarHandler //initialize resizable bar
 applyDefaultSettings //applies default settings */
-function initTracerContextPegaView() {
+function initTracerContextPegaView(initWithView) {
+    if (document.readyState !== 'loading') {
+        clipboardJSON = contextPageToJSON()
+    } else {
+        document.addEventListener('DOMContentLoaded', () => {
+            clipboardJSON = contextPageToJSON()
+        })
+    }
+
     renderMakrupFromJSON(clipboardJSON, [
         appendChangeViewButton,
         resizableBarHandler,
-        applyDefaultSettings,
+        () => {
+            //shows proper view and button
+            let changeViewBtn,
+                bodyToHide,
+                visibleBody = null
+
+            console.log('default view', initWithView)
+
+            if (initWithView === 'default') {
+                changeViewBtn = document.querySelector('.pe__tcp-view-messy')
+
+                bodyToHide = document.querySelector('.pe__tcp_body-tidy')
+
+                visibleBody = document.querySelector('.pe__tcp_body-messy')
+                //pe__tcp_change-view
+            } else {
+                changeViewBtn = document.querySelector('.pe__tcp-view-tidy')
+
+                bodyToHide = document.querySelector('.pe__tcp_body-messy')
+
+                visibleBody = document.querySelector('.pe__tcp_body-tidy')
+            }
+
+            changeViewBtn.classList.add('pe__display-none')
+            bodyToHide.classList.add('pe__display-none')
+            visibleBody.appendChild(
+                changeViewBtn.closest('div.pe__tcp_change-view')
+            )
+        },
     ])
 }
 
-initTracerContextPegaView() //entry point
-
-//resize event hadling
-window.addEventListener('resize', (e) => {
-    const t = e.target
-    console.log(`widht: ${t.innerWidth} height: ${t.innerHeight}`)
-})
+//initTracerContextPegaView() //entry point
 
 /* prepares markup similar to clipboard viewer
 thenFuArr param makes possible to call next function in synchronous manner */
@@ -149,7 +214,7 @@ function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
     const originalBody = document.querySelector('body')
     originalBody.classList.add('pe__tcp_body-messy')
 
-    originalBody.classList.add('pe__display-none') //TODO: test
+    //originalBody.classList.add('pe__display-none') //TODO: test
 
     const tidyViewBody = originalBody.parentElement.appendChild(
         templateEngine({
@@ -735,5 +800,39 @@ function resizableBarHandler() {
             aside.style.width = `${x}px`
             main.style.width = `calc(100% - ${x}px - var(--bar-width))`
         }
+    })
+}
+
+function setExtSettings(key, value) {
+    if (!key) {
+        console.log('key cannot be empty')
+        return
+    }
+
+    //save viewMode to extension settings
+    chrome.runtime.sendMessage({
+        type: 'settingsSet',
+        sender: 'pega-extension',
+        payload: {
+            key: key,
+            value: value,
+        },
+    })
+}
+
+//resize event hadling
+function handleResizeEvent() {
+    window.addEventListener('resize', (e) => {
+        const t = e.target
+        console.log(`widht: ${t.innerWidth} height: ${t.outerHeight}`)
+
+        //set extension settings
+        setExtSettings(
+            'tcp-windowSize',
+            JSON.stringify({
+                width: t.innerWidth,
+                height: t.outerHeight,
+            })
+        )
     })
 }
