@@ -1,17 +1,10 @@
 //trace context page viewer popup
 let clipboardJSON = null
+const clipboardFlatArr = []
 
-/* window size change sends messages and updates sync storage
-trottling helps to reduce such chatting
-let trottleSizeSetting = false
-*/
-
-//TODO: test
-const testvalue = true
-//if (testvalue) return
-
-//TODO: impmlement. applies default settings
-function applyDefaultSettings() {}
+/*local copy of settings. the idea here is to minimize updates 
+while keeping continuously requesting dimensions */
+let windowSizeSetting = {}
 
 //retrieves extension settings and proceeds with the whole functionality initialization
 const getExtensionSettings = () => {
@@ -23,15 +16,29 @@ const getExtensionSettings = () => {
             const isTCPEnabled = payload['tcp-enabled'] ?? null
 
             if (isTCPEnabled) {
-                handleResizeEvent()
-
                 if (payload['tcp-windowSize']) {
                     const windowSize = JSON.parse(payload['tcp-windowSize'])
+
+                    //update local copy with values from settings
+                    windowSizeSetting = {
+                        width: windowSize['width'],
+                        height: windowSize['height'],
+                    }
+
+                    console.log('window_size settings', {
+                        settings: windowSize,
+                        current: {
+                            width: self.innerWidth,
+                            height: self.outerHeight,
+                        },
+                    })
 
                     if (windowSize['width'] && windowSize['height']) {
                         self.resizeTo(windowSize['width'], windowSize['height'])
                     }
                 }
+
+                handleResizeEvent()
 
                 //responsible for what view will be displayed. default is OOTB view
                 const selectedView = payload['tcp-viewMode'] ?? 'default'
@@ -42,6 +49,7 @@ const getExtensionSettings = () => {
     })
 }
 
+//entry point
 getExtensionSettings()
 
 /* adds a button to change view mode between tidy and messy
@@ -148,8 +156,7 @@ calls initializer functions in proper order
 initWithView - the view to display on load
 renderMakrupFromJSON //renders markup
 appendChangeViewButton //add change view button
-resizableBarHandler //initialize resizable bar
-applyDefaultSettings //applies default settings */
+resizableBarHandler //initialize resizable bar */
 function initTracerContextPegaView(initWithView) {
     if (document.readyState !== 'loading') {
         clipboardJSON = contextPageToJSON()
@@ -158,6 +165,8 @@ function initTracerContextPegaView(initWithView) {
             clipboardJSON = contextPageToJSON()
         })
     }
+
+    console.log('final result', clipboardJSON)
 
     renderMakrupFromJSON(clipboardJSON, [
         appendChangeViewButton,
@@ -168,15 +177,12 @@ function initTracerContextPegaView(initWithView) {
                 bodyToHide,
                 visibleBody = null
 
-            console.log('default view', initWithView)
-
             if (initWithView === 'default') {
                 changeViewBtn = document.querySelector('.pe__tcp-view-messy')
 
                 bodyToHide = document.querySelector('.pe__tcp_body-tidy')
 
                 visibleBody = document.querySelector('.pe__tcp_body-messy')
-                //pe__tcp_change-view
             } else {
                 changeViewBtn = document.querySelector('.pe__tcp-view-tidy')
 
@@ -194,8 +200,6 @@ function initTracerContextPegaView(initWithView) {
     ])
 }
 
-//initTracerContextPegaView() //entry point
-
 /* prepares markup similar to clipboard viewer
 thenFuArr param makes possible to call next function in synchronous manner */
 function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
@@ -210,11 +214,11 @@ function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
 
     const clipboardJSONMarkup = renderClipboardJSONMarkup(contextPageJSON)
 
+    console.log('flat representation', clipboardFlatArr)
+
     //add custom class to control visibility later
     const originalBody = document.querySelector('body')
     originalBody.classList.add('pe__tcp_body-messy')
-
-    //originalBody.classList.add('pe__display-none') //TODO: test
 
     const tidyViewBody = originalBody.parentElement.appendChild(
         templateEngine({
@@ -245,12 +249,48 @@ function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
                             tag: 'aside',
                             content: [
                                 {
-                                    tag: 'input',
+                                    tag: 'span',
                                     cls: 'pe__tcp_search_input',
-                                    attrs: {
-                                        placeholder:
-                                            'Search within this context',
-                                    },
+                                    content: [
+                                        {
+                                            tag: 'input',
+                                            attrs: {
+                                                placeholder:
+                                                    'Search within this context',
+                                            },
+                                        },
+                                        {
+                                            tag: 'div',
+                                            cls: 'pe__tcp_search_input-fake',
+                                        },
+                                        {
+                                            tag: 'span',
+                                            cls: 'pe__tcp_search_input_options',
+                                            content: [
+                                                {
+                                                    tag: 'span',
+                                                    content: 'Aa',
+                                                    cls: 'pe__tcp_search_input_case',
+                                                    attrs: {
+                                                        title: 'Case sensitive search',
+                                                    },
+                                                },
+                                                {
+                                                    tag: 'span',
+                                                    content: [
+                                                        {
+                                                            tag: 'span',
+                                                            content: '.*',
+                                                        },
+                                                    ],
+                                                    cls: 'pe__tcp_search_input_isregex',
+                                                    attrs: {
+                                                        title: 'Use regular expression',
+                                                    },
+                                                },
+                                            ],
+                                        },
+                                    ],
                                 },
                                 {
                                     tag: 'div',
@@ -264,17 +304,108 @@ function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
                             ],
                         },
                         {
-                            tag: 'main',
+                            tag: 'div',
+                            cls: 'pe__tcp_main_wrapper',
                             content: [
-                                { tag: 'div', cls: 'pe__tcp_body-tidy-header' },
                                 {
-                                    tag: 'table',
-                                    cls: 'pe__tcp_body-tidy-table',
+                                    tag: 'main',
                                     content: [
                                         {
-                                            tag: 'thead',
+                                            tag: 'div',
+                                            cls: 'pe__tcp_body-tidy-header',
+                                        },
+                                        {
+                                            tag: 'table',
+                                            cls: 'pe__tcp_body-tidy-table',
                                             content: [
                                                 {
+                                                    tag: 'thead',
+                                                    content: [
+                                                        {
+                                                            tag: 'tr',
+                                                            content: [
+                                                                {
+                                                                    tag: 'th',
+                                                                    cls: 'pe__tcp-body-tidy-table-column-key',
+                                                                    content: {
+                                                                        tag: 'div',
+                                                                        content:
+                                                                            'Property',
+                                                                    },
+                                                                },
+                                                                {
+                                                                    tag: 'th',
+                                                                    cls: 'pe__tcp-body-tidy-table-column-value',
+                                                                    content: {
+                                                                        tag: 'div',
+                                                                        content:
+                                                                            'Value',
+                                                                    },
+                                                                },
+                                                            ],
+                                                        },
+                                                    ],
+                                                },
+                                                { tag: 'tbody' },
+                                            ],
+                                        },
+                                    ],
+                                },
+                                {
+                                    /* this is a stub elements that pushes results table up
+                                and allows to minimized search thing to appera correctly */
+                                    tag: 'div',
+                                    cls: [
+                                        'pe__tcp_search_results_stub',
+                                        'pe__tcp_hidden',
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    tag: 'div',
+                    cls: ['pe__tcp_search_results_wrapper', 'pe__tcp_hidden'],
+                    content: [
+                        {
+                            tag: 'div',
+                            cls: 'pe__tcp_search_results_content',
+                            content: [
+                                {
+                                    tag: 'div',
+                                    cls: 'pe__tcp_search_results_header',
+                                    content: [
+                                        {
+                                            tag: 'span',
+                                            content: 'Search Results',
+                                            cls: 'pe__tcp_popover_title',
+                                        },
+                                        {
+                                            tag: 'img',
+                                            cls: 'pe__tcp_popover_close',
+                                            attrs: {
+                                                src: chrome.runtime.getURL(
+                                                    './assets/img/close.png'
+                                                ),
+                                            },
+                                        },
+                                    ],
+                                },
+                                {
+                                    tag: 'div',
+                                    cls: 'pe__tcp_search_results_body_title',
+                                },
+                                {
+                                    tag: 'div',
+                                    cls: 'pe__tcp_search_results_body',
+                                    content: {
+                                        tag: 'table',
+                                        cls: 'pe__tcp_body-tidy-table',
+                                        content: [
+                                            {
+                                                tag: 'thead',
+                                                content: {
                                                     tag: 'tr',
                                                     content: [
                                                         {
@@ -288,6 +419,15 @@ function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
                                                         },
                                                         {
                                                             tag: 'th',
+                                                            cls: 'pe__tcp-body-tidy-table-column-key',
+                                                            content: {
+                                                                tag: 'div',
+                                                                content:
+                                                                    'Property Reference',
+                                                            },
+                                                        },
+                                                        {
+                                                            tag: 'th',
                                                             cls: 'pe__tcp-body-tidy-table-column-value',
                                                             content: {
                                                                 tag: 'div',
@@ -297,10 +437,28 @@ function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
                                                         },
                                                     ],
                                                 },
-                                            ],
-                                        },
-                                        { tag: 'tbody' },
-                                    ],
+                                            },
+                                            { tag: 'tbody' },
+                                        ],
+                                    },
+                                },
+                            ],
+                        },
+                        {
+                            tag: 'div',
+                            cls: 'pe__tcp_search_results_minimized',
+                            content: [
+                                {
+                                    tag: 'span',
+                                },
+                                {
+                                    tag: 'img',
+                                    cls: 'pe__tcp_popover_close',
+                                    attrs: {
+                                        src: chrome.runtime.getURL(
+                                            './assets/img/close.png'
+                                        ),
+                                    },
                                 },
                             ],
                         },
@@ -309,6 +467,216 @@ function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
             ],
         })
     )
+
+    //handles click on greyed area around poover - minimizes search results popover
+    tidyViewBody
+        .querySelector('.pe__tcp_search_results_wrapper')
+        .addEventListener('click', (e) => {
+            if (!e.target.matches('.pe__tcp_search_results_wrapper')) return
+
+            //BLAH
+            e.stopPropagation()
+            e.preventDefault()
+
+            e.target.classList.add('pe__tcp_search_popover_minimize')
+
+            document.querySelector('.pe__tcp_search_input > input').value = ''
+
+            const searchPhrase = document.querySelector(
+                '.pe__tcp_search_results_body_title'
+            ).dataset.searchPhrase
+
+            document.querySelector(
+                '.pe__tcp_search_results_minimized span'
+            ).innerText = `Search for '${searchPhrase}'`
+
+            document
+                .querySelector('.pe__tcp_search_results_stub')
+                .classList.remove('pe__tcp_hidden')
+        })
+
+    //handles minimized search results popver click
+    tidyViewBody
+        .querySelector('.pe__tcp_search_results_minimized')
+        .addEventListener('click', (e) => {
+            tidyViewBody
+                .querySelector('.pe__tcp_search_results_wrapper')
+                .classList.remove('pe__tcp_search_popover_minimize')
+
+            document
+                .querySelector('.pe__tcp_search_results_stub')
+                .classList.add('pe__tcp_hidden')
+        })
+    //search options
+    const searchOptions = { caseSensitive: false, regex: false }
+
+    //search results popover close button click handler
+    tidyViewBody
+        .querySelector('.pe__tcp_search_results_wrapper')
+        .addEventListener('click', (e) => {
+            if (!e.target.matches('.pe__tcp_popover_close')) return
+
+            e.target
+                .closest('.pe__tcp_search_results_wrapper')
+                .classList.add('pe__tcp_hidden')
+
+            document.querySelector('.pe__tcp_search_input input').value = ''
+        })
+
+    //search options click handler
+    tidyViewBody
+        .querySelector('.pe__tcp_search_input_options')
+        .addEventListener('click', (e) => {
+            let target = e.target
+
+            if (
+                target.matches('span:not([class])') &&
+                target.parentElement.matches('.pe__tcp_search_input_isregex')
+            ) {
+                target = target.parentElement
+            }
+
+            console.log('clicked option', target)
+            //select or deselect searching option
+            if (
+                target.matches('.pe__tcp_search_input_case') ||
+                target.matches('.pe__tcp_search_input_isregex')
+            ) {
+                if (
+                    target.classList.contains(
+                        'pe__tcp_search_input_option-selected'
+                    )
+                ) {
+                    target.classList.remove(
+                        'pe__tcp_search_input_option-selected'
+                    )
+
+                    if (target.matches('.pe__tcp_search_input_case')) {
+                        searchOptions['caseSensitive'] = false
+                    } else {
+                        searchOptions['regex'] = false
+                    }
+                } else {
+                    target.classList.add('pe__tcp_search_input_option-selected')
+
+                    if (target.matches('.pe__tcp_search_input_case')) {
+                        searchOptions['caseSensitive'] = true
+                    } else {
+                        searchOptions['regex'] = true
+                    }
+                }
+            }
+        })
+
+    //search functionality
+    tidyViewBody
+        .querySelector('.pe__tcp_search_input input')
+        .addEventListener('keypress', (e) => {
+            if (!(e.key === 'Enter' && e.target.value.trim())) return
+
+            e.target.blur() //unfocus
+
+            const target = e.target
+
+            let searchPhrase = target.value
+
+            /* hide minimized search results
+            here selector designed to handle only situations when search results are minimized 
+            this should be placed after getting search phrase */
+            tidyViewBody
+                .querySelector(
+                    '.pe__tcp_search_popover_minimize .pe__tcp_search_results_minimized .pe__tcp_popover_close'
+                )
+                ?.click()
+
+            //target.value = searchPhrase
+
+            //checkes if search should be case insensitive and not regex
+            const isCaseInsensititveNotRegex =
+                !searchOptions.caseSensitive && searchOptions.regex !== true
+
+            if (isCaseInsensititveNotRegex) {
+                searchPhrase = searchPhrase.toLowerCase()
+            }
+
+            //just in case create regex for every search
+            let regex = null
+            if (!searchOptions.caseSensitive) {
+                regex = new RegExp(searchPhrase, 'i')
+            } else {
+                regex = new RegExp(searchPhrase)
+            }
+
+            let searchResult = []
+
+            for (const cv of clipboardFlatArr) {
+                let currVal = cv.value
+                let currKey = cv.key
+
+                /* if case sensitive selected and not regex, 
+                    convert both strings to lower case
+                    such convertation breaks regex and not compatible with it */
+                if (isCaseInsensititveNotRegex) {
+                    currVal = currVal.toLowerCase()
+                    currKey = currKey.toLowerCase()
+                    //searchPhrase = searchPhrase.toLowerCase()
+                }
+
+                //key is true if its matches, value is true is its matches
+                let result = { isKeyMatch: false, isValueMatch: false }
+
+                //prepare regex. if search is not case sensitive, add flag
+                if (searchOptions.regex === true) {
+                    /* let regex = null
+
+                    if (!searchOptions.caseSensitive) {
+                        regex = new RegExp(searchPhrase, 'i')
+                    } else {
+                        regex = new RegExp(searchPhrase)
+                    } */
+
+                    result = {
+                        isKeyMatch: regex.test(currKey),
+                        isValueMatch: regex.test(currVal),
+                    }
+                } else {
+                    result = {
+                        isKeyMatch: currKey.includes(searchPhrase),
+                        isValueMatch: currVal.includes(searchPhrase),
+                    }
+                }
+
+                if (
+                    result.isKeyMatch === true ||
+                    result.isValueMatch === true
+                ) {
+                    cv.isKeyMatch = result.isKeyMatch
+                    cv.isValueMatch = result.isValueMatch
+
+                    searchResult.push(cv)
+                }
+            }
+
+            console.log('search result', searchResult)
+
+            console.log('search phrase', searchPhrase)
+
+            const searchResultsBodyTitle = document.querySelector(
+                '.pe__tcp_search_results_body_title'
+            )
+
+            searchResultsBodyTitle.innerText = `Property value or name contains '${searchPhrase}'`
+            searchResultsBodyTitle.dataset.searchPhrase = searchPhrase
+
+            const searchResultsBody = document.querySelector(
+                '.pe__tcp_search_results_body tbody'
+            )
+
+            const resultsMarkup = displaySearchResults(searchResult) //display search results
+
+            searchResultsBody.innerHTML = ''
+            searchResultsBody.appendChild(resultsMarkup)
+        })
 
     //click event handler. responsible for tree nodes behavior
     tidyViewBody
@@ -447,8 +815,6 @@ function displayPageProperties(pageName) {
 
     const oldTbody = contentsTable.querySelector('tbody')
 
-    console.log('show page', pageToShow)
-
     if (pageToShow.find((pts) => pts.type === 'property') === undefined) {
         //hide left panel contents if page doesn't have any property
         contentsTable.classList.add('pe__tcp_hidden')
@@ -468,24 +834,51 @@ function displayPageProperties(pageName) {
     )
 
     if (contentsTitleElement) {
-        //attempt to make clean page reference //TODO:fix
-        let contentsTtitle = clearPageTitle
-        /* document
-            .querySelector('.pe__tcp_tree-node-clicked')
-            ?.dataset.uri?.replace(
-                /(?<=\b)root((?=\..*)|(\b))/,
-                clipboardJSON['key']
-            )
-                */
-
-        contentsTitleElement.innerText = `Clipboard page: ${contentsTtitle}`
-
-        console.log(contentsTtitle)
+        //attempt to make clean page reference
+        contentsTitleElement.innerText = `Clipboard page: ${clearPageTitle}`
     }
 }
 
-//TODO: test
+/* builds markup for clipboard tree */
 function renderClipboardJSONMarkup(cObj, sURI) {
+    //prettifies property path
+    function prettifyPropertyPath(rawUri) {
+        const rawPathArr = rawUri.includes('.') ? rawUri.split('.') : [rawUri]
+
+        let result = '',
+            lastKey = ''
+
+        for (const p of rawPathArr) {
+            if (p.replace(/\(.*\)$/, '') !== lastKey) {
+                result += result ? '.' + p : p
+            } else {
+                result = result.substring(0, result.lastIndexOf('.')) + '.' + p
+            }
+            lastKey = p
+        }
+
+        result = /^root/.test(result)
+            ? result.replace(/^root/, clipboardJSON.key)
+            : result
+
+        return result
+    }
+
+    function pushObjectToFlatArr({ uri, key, value }) {
+        /* clipboardFlatArr.push({
+        uri: uri,
+        value: v.value,
+        key: v.key,
+        prettyUri: prettifyPropertyPath(uri),
+    }) */
+        clipboardFlatArr.push({
+            uri: uri,
+            key: key,
+            value: value,
+            prettyUri: prettifyPropertyPath(uri),
+        })
+    }
+
     function buildNodeJSONMarkup(clipboardObj, sumURI) {
         const markup = []
 
@@ -493,7 +886,7 @@ function renderClipboardJSONMarkup(cObj, sURI) {
             if (p.type === 'page' || p.type === 'list') {
                 const thisURI = sumURI
                     ? sumURI + '.' + p.key
-                    : 'root' /* clipboardJSON['key'] */ + '.' + p.key
+                    : 'root' + '.' + p.key
 
                 const nestedPages = buildNodeJSONMarkup(p, thisURI)
 
@@ -504,6 +897,26 @@ function renderClipboardJSONMarkup(cObj, sURI) {
                     p.value.find((o) => o.type !== 'property') === undefined
                 ) {
                     showExpandBtn = false
+                }
+
+                //fill in clipboard flat representation
+                for (const v of p.value) {
+                    if (v.type === 'property') {
+                        const uri = thisURI ?? 'root'
+
+                        pushObjectToFlatArr({
+                            uri: uri,
+                            key: v.key,
+                            value: v.value,
+                        })
+                        /*
+                        clipboardFlatArr.push({
+                            uri: uri,
+                            value: v.value,
+                            key: v.key,
+                            prettyUri: prettifyPropertyPath(uri),
+                        }) */
+                    }
                 }
 
                 const pagePathLabel = p.class
@@ -551,12 +964,32 @@ function renderClipboardJSONMarkup(cObj, sURI) {
                     nestedPages.cls = 'pe__tcp_hidden'
                     markup[markup.length - 1].content.push(nestedPages)
                 }
+            } else {
+                if (p.type === 'property') {
+                    const uri = sumURI ?? 'root'
+                    //fill in clipboard flat representation
+
+                    pushObjectToFlatArr({
+                        uri: uri,
+                        key: p.key,
+                        value: p.value,
+                    })
+                    /*
+                    clipboardFlatArr.push({
+                        uri: uri,
+                        value: p.value,
+                        key: p.key,
+                        prettyUri: prettifyPropertyPath(uri),
+                    })*/
+                }
             }
         }
 
         //all contents wrapped in Context page
         return { tag: 'ul', content: markup }
     }
+
+    console.log('root', clipboardJSON.key)
 
     return {
         tag: 'ul',
@@ -744,8 +1177,6 @@ function contextPageToJSON() {
         value: collectPageAttributes(table),
     }
 
-    console.log('final result', result)
-
     return result
 }
 
@@ -762,7 +1193,9 @@ function resizableBarHandler() {
         ?.getPropertyValue('min-width')
         ?.replace(/[^0-9]./, '')
 
-    const main = document.querySelector('.pe__tcp_body-tidy main')
+    const mainWrapper = document.querySelector(
+        '.pe__tcp_body-tidy .pe__tcp_main_wrapper'
+    )
 
     const handle = document.querySelector('.pe__tcp_resizable-handle')
 
@@ -789,16 +1222,16 @@ function resizableBarHandler() {
             //the handle bar can't move to the right less than minimum width of the aside element
             handle.style.left = 'var(--aside-min-width)'
             aside.style.width = 'var(--aside-min-width)'
-            main.style.width = '100%' // `calc(${window.outerWidth} - var(--aside-min-width))`
+            mainWrapper.style.width = '100%' // `calc(${window.outerWidth} - var(--aside-min-width))`
         } else if ((x / window.outerWidth) * 100 >= 90) {
             //the handle bar can't move to the left more than 90% of the screen width
             handle.style.left = '90%'
             aside.style.width = '90%'
-            main.style.width = '10%'
+            mainWrapper.style.width = '10%'
         } else {
             handle.style.left = `${x}px`
             aside.style.width = `${x}px`
-            main.style.width = `calc(100% - ${x}px - var(--bar-width))`
+            mainWrapper.style.width = `calc(100% - ${x}px - var(--bar-width))`
         }
     })
 }
@@ -820,19 +1253,53 @@ function setExtSettings(key, value) {
     })
 }
 
-//resize event hadling
+//resize event hadling. mutation observer and resize events did not work
 function handleResizeEvent() {
-    window.addEventListener('resize', (e) => {
-        const t = e.target
-        console.log(`widht: ${t.innerWidth} height: ${t.outerHeight}`)
+    setInterval(() => {
+        let currentSizes = { width: self.outerWidth, height: self.outerHeight }
 
-        //set extension settings
-        setExtSettings(
-            'tcp-windowSize',
-            JSON.stringify({
-                width: t.innerWidth,
-                height: t.outerHeight,
+        if (
+            currentSizes.width !== windowSizeSetting['width'] ||
+            currentSizes.height !== windowSizeSetting['height']
+        ) {
+            windowSizeSetting = currentSizes
+
+            setExtSettings('tcp-windowSize', JSON.stringify(currentSizes))
+
+            console.log('window_size sent message', windowSizeSetting)
+        }
+    }, 500)
+}
+
+/* responsible for displaying search results
+searchResults is an arr */
+function displaySearchResults(searchResults) {
+    console.log('search results', searchResults)
+
+    document
+        .querySelector('.pe__tcp_search_results_wrapper')
+        .classList.remove('pe__tcp_hidden')
+
+    if (!(Array.isArray(searchResults) && searchResults.length > 0)) {
+        //show stub
+    } else {
+        let resultsRows = []
+
+        for (const sr of searchResults) {
+            resultsRows.push({
+                tag: 'tr',
+                content: [
+                    { tag: 'td', content: { tag: 'div', content: sr.key } },
+                    {
+                        tag: 'td',
+                        content: { tag: 'div', content: sr.prettyUri },
+                        attrs: { 'data-uri': sr.uri },
+                    },
+                    { tag: 'td', content: { tag: 'div', content: sr.value } },
+                ],
             })
-        )
-    })
+        }
+
+        return templateEngine(resultsRows)
+    }
 }

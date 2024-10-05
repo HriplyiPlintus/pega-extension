@@ -53,10 +53,17 @@ Extension settings synced between browsers
 
 #TODO:
 
+0. TCP view search
 1. check tab switch with different shortcuts for win and mac
 2. make new shortcut work without pega page refresh. party implemented, look at getExtensionSettings() definition. but it's dev portal's initiative, should be popup's
 3. clipboard pages prioritization doesn't work properly in VDI. double check
 4. implement decode base64 functionality for any selected text - like confluence comments work - https://stackoverflow.com/a/64513026/17654999
+5. add new tab in popup: Buddy - proxy to pega knowledgebase
+6. add dev studio enhancements extension setting.
+    1. when activated, new options show up: class and name copy feature, key icon, rule signature icon, app/branch refresh icon
+    2. siblings icon
+       3.2 references icon
+7. fix pe\_\_tcp_body-tidy-header width. width is incorrect when main element width is less then 300
 
 #architecture
 #API messages types
