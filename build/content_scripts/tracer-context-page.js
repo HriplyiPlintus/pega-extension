@@ -9,7 +9,6 @@ let windowSizeSetting = {}
 //retrieves extension settings and proceeds with the whole functionality initialization
 const getExtensionSettings = () => {
     chrome.runtime.sendMessage({ message: 'getSettings' }, (response) => {
-        console.log('settings', response)
         if (response?.payload) {
             const payload = response.payload
 
@@ -24,14 +23,6 @@ const getExtensionSettings = () => {
                         width: windowSize['width'],
                         height: windowSize['height'],
                     }
-
-                    console.log('window_size settings', {
-                        settings: windowSize,
-                        current: {
-                            width: self.innerWidth,
-                            height: self.outerHeight,
-                        },
-                    })
 
                     if (windowSize['width'] && windowSize['height']) {
                         self.resizeTo(windowSize['width'], windowSize['height'])
@@ -561,7 +552,33 @@ function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
                     )
             }
 
-            //if(target.dataset.option === 'value')
+            const resultsTable = document.querySelector(
+                '.pe__tcp_search_results_body .pe__tcp_body-tidy-table'
+            )
+            //count up number of visible rows
+            const resultsRows = resultsTable.querySelectorAll('tbody tr')
+
+            let atLeastOneVisible = false
+
+            for (const rr of resultsRows) {
+                if (rr.checkVisibility()) {
+                    atLeastOneVisible = true
+
+                    break
+                }
+            }
+
+            const noItemsRow = resultsTable.querySelector(
+                '.pe__tcp_search_results_noitems'
+            )
+
+            if (!atLeastOneVisible) {
+                noItemsRow.classList.remove('pe__tcp_hidden')
+            } else {
+                if (!noItemsRow.classList.contains('pe__tcp_hidden')) {
+                    noItemsRow.classList.add('pe__tcp_hidden')
+                }
+            }
         })
 
     //handles click on greyed area around poover - minimizes search results popover
@@ -629,8 +646,6 @@ function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
                 'pe__tcp_search_results_keymatch_hidden'
             )
 
-            console.log(searchResultsTable)
-
             e.target
                 .closest('.pe__tcp_search_results_wrapper')
                 .classList.add('pe__tcp_hidden')
@@ -651,7 +666,6 @@ function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
                 target = target.parentElement
             }
 
-            console.log('clicked option', target)
             //select or deselect searching option
             if (
                 target.matches('.pe__tcp_search_input_case') ||
@@ -703,8 +717,6 @@ function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
                     '.pe__tcp_search_popover_minimize .pe__tcp_search_results_minimized .pe__tcp_popover_close'
                 )
                 ?.click()
-
-            //target.value = searchPhrase
 
             //checkes if search should be case insensitive and not regex
             const isCaseInsensititveNotRegex =
@@ -1092,8 +1104,6 @@ function renderClipboardJSONMarkup(cObj, sURI) {
         return { tag: 'ul', content: markup }
     }
 
-    console.log('root', clipboardJSON.key)
-
     return {
         tag: 'ul',
         content: [
@@ -1341,7 +1351,7 @@ function resizableBarHandler() {
 
 function setExtSettings(key, value) {
     if (!key) {
-        console.log('key cannot be empty')
+        console.warn('key cannot be empty')
         return
     }
 
@@ -1368,8 +1378,6 @@ function handleResizeEvent() {
             windowSizeSetting = currentSizes
 
             setExtSettings('tcp-windowSize', JSON.stringify(currentSizes))
-
-            console.log('window_size sent message', windowSizeSetting)
         }
     }, 500)
 }
@@ -1377,17 +1385,15 @@ function handleResizeEvent() {
 /* responsible for displaying search results
 searchResults is an arr */
 function displaySearchResults(searchResults) {
-    console.log('search results', searchResults)
-
+    //show popover
     document
         .querySelector('.pe__tcp_search_results_wrapper')
         .classList.remove('pe__tcp_hidden')
 
-    if (!(Array.isArray(searchResults) && searchResults.length > 0)) {
-        //show stub
-    } else {
-        let resultsRows = []
+    let resultsRows = []
+    let noItemsRowClsArr = ['pe__tcp_search_results_noitems']
 
+    if (Array.isArray(searchResults) && searchResults.length > 0) {
         for (const sr of searchResults) {
             resultsRows.push({
                 tag: 'tr',
@@ -1415,6 +1421,19 @@ function displaySearchResults(searchResults) {
             })
         }
 
-        return templateEngine(resultsRows)
+        noItemsRowClsArr.push('pe__tcp_hidden')
     }
+
+    /* in case there are no results to show
+    sometimes after filtering there are nothing to show */
+    resultsRows.push({
+        tag: 'tr',
+        cls: noItemsRowClsArr,
+        content: {
+            tag: 'td',
+            content: 'No items',
+        },
+    })
+
+    return templateEngine(resultsRows)
 }

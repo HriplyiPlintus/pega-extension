@@ -516,6 +516,10 @@
     color: black;
 }
 
+.pe__tcp_search_results_noitems td {
+    padding: 10px;
+}
+
 .pe__tcp_search_results_content {
     min-width: 500px;
     min-height: 300px;
