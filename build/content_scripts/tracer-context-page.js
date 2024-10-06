@@ -395,6 +395,41 @@ function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
                                 {
                                     tag: 'div',
                                     cls: 'pe__tcp_search_results_body_title',
+                                    content: [
+                                        { tag: 'span', content: 'Property ' },
+                                        {
+                                            tag: 'span',
+                                            content: 'value',
+                                            cls: 'pe__tcp_search_results_body_title_option',
+                                            attrs: {
+                                                'data-option': 'value',
+                                                'data-selected': true,
+                                            },
+                                        },
+                                        {
+                                            tag: 'span',
+                                            content: ' or ',
+                                        },
+                                        {
+                                            tag: 'span',
+                                            content: 'name',
+                                            cls: 'pe__tcp_search_results_body_title_option',
+                                            attrs: {
+                                                'data-option': 'key',
+                                                'data-selected': true,
+                                            },
+                                        },
+                                        { tag: 'span', content: " contains '" },
+                                        {
+                                            tag: 'span',
+                                            content: '',
+                                            cls: 'pe__tcp_search_results_body_title_phrase',
+                                        },
+                                        {
+                                            tag: 'span',
+                                            content: "'",
+                                        },
+                                    ],
                                 },
                                 {
                                     tag: 'div',
@@ -468,13 +503,75 @@ function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
         })
     )
 
+    //handles search results filtering options
+    document
+        .querySelector('.pe__tcp_search_results_body_title')
+        .addEventListener('click', (e) => {
+            const target = e.target
+
+            if (!target.matches('.pe__tcp_search_results_body_title_option'))
+                return
+
+            e.stopPropagation()
+            e.preventDefault()
+
+            //BLAH
+
+            const otherOption = target.parentElement.querySelector(
+                `.pe__tcp_search_results_body_title_option[data-option]:not([data-option='${target.dataset.option}'`
+            )
+
+            /* both filtering option could not be unselected */
+            if (
+                target.dataset.selected === 'true' &&
+                otherOption.dataset.selected === 'false'
+            ) {
+                otherOption.dataset.selected = 'true'
+                target.dataset.selected = 'true'
+
+                target
+                    .closest('.pe__tcp_search_results_content')
+                    .querySelector('table')
+                    .classList.remove(
+                        `pe__tcp_search_results_${target.dataset.option}match_hidden`
+                    )
+
+                target
+                    .closest('.pe__tcp_search_results_content')
+                    .querySelector('table')
+                    .classList.remove(
+                        `pe__tcp_search_results_${otherOption.dataset.option}match_hidden`
+                    )
+            } else if (target.dataset.selected === 'true') {
+                target.dataset.selected = 'false'
+
+                //hide results that match by deselected option
+                target
+                    .closest('.pe__tcp_search_results_content')
+                    .querySelector('table')
+                    .classList.add(
+                        `pe__tcp_search_results_${target.dataset.option}match_hidden`
+                    )
+            } else {
+                target.dataset.selected = 'true'
+
+                target
+                    .closest('.pe__tcp_search_results_content')
+                    .querySelector('table')
+                    .classList.remove(
+                        `pe__tcp_search_results_${target.dataset.option}match_hidden`
+                    )
+            }
+
+            //if(target.dataset.option === 'value')
+        })
+
     //handles click on greyed area around poover - minimizes search results popover
     tidyViewBody
         .querySelector('.pe__tcp_search_results_wrapper')
         .addEventListener('click', (e) => {
             if (!e.target.matches('.pe__tcp_search_results_wrapper')) return
 
-            //BLAH
             e.stopPropagation()
             e.preventDefault()
 
@@ -483,7 +580,7 @@ function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
             document.querySelector('.pe__tcp_search_input > input').value = ''
 
             const searchPhrase = document.querySelector(
-                '.pe__tcp_search_results_body_title'
+                '.pe__tcp_search_results_body_title_phrase'
             ).dataset.searchPhrase
 
             document.querySelector(
@@ -619,7 +716,6 @@ function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
                 if (isCaseInsensititveNotRegex) {
                     currVal = currVal.toLowerCase()
                     currKey = currKey.toLowerCase()
-                    //searchPhrase = searchPhrase.toLowerCase()
                 }
 
                 //key is true if its matches, value is true is its matches
@@ -627,14 +723,6 @@ function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
 
                 //prepare regex. if search is not case sensitive, add flag
                 if (searchOptions.regex === true) {
-                    /* let regex = null
-
-                    if (!searchOptions.caseSensitive) {
-                        regex = new RegExp(searchPhrase, 'i')
-                    } else {
-                        regex = new RegExp(searchPhrase)
-                    } */
-
                     result = {
                         isKeyMatch: regex.test(currKey),
                         isValueMatch: regex.test(currVal),
@@ -657,16 +745,13 @@ function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
                 }
             }
 
-            console.log('search result', searchResult)
-
-            console.log('search phrase', searchPhrase)
-
-            const searchResultsBodyTitle = document.querySelector(
-                '.pe__tcp_search_results_body_title'
+            const searchResultsBodyTitleSearchPhrase = document.querySelector(
+                '.pe__tcp_search_results_body_title_phrase'
             )
 
-            searchResultsBodyTitle.innerText = `Property value or name contains '${searchPhrase}'`
-            searchResultsBodyTitle.dataset.searchPhrase = searchPhrase
+            searchResultsBodyTitleSearchPhrase.innerText = searchPhrase
+            searchResultsBodyTitleSearchPhrase.dataset.searchPhrase =
+                searchPhrase
 
             const searchResultsBody = document.querySelector(
                 '.pe__tcp_search_results_body tbody'
@@ -1288,14 +1373,26 @@ function displaySearchResults(searchResults) {
         for (const sr of searchResults) {
             resultsRows.push({
                 tag: 'tr',
+                attrs: {
+                    'data-key-matches': sr.isKeyMatch,
+                    'data-value-matches': sr.isValueMatch,
+                },
                 content: [
-                    { tag: 'td', content: { tag: 'div', content: sr.key } },
+                    {
+                        tag: 'td',
+                        content: { tag: 'div', content: sr.key },
+                        attrs: { 'data-key-matches': sr.isKeyMatch },
+                    },
                     {
                         tag: 'td',
                         content: { tag: 'div', content: sr.prettyUri },
                         attrs: { 'data-uri': sr.uri },
                     },
-                    { tag: 'td', content: { tag: 'div', content: sr.value } },
+                    {
+                        tag: 'td',
+                        content: { tag: 'div', content: sr.value },
+                        attrs: { 'data-value-matches': sr.isValueMatch },
+                    },
                 ],
             })
         }
