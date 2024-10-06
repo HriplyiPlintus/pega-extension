@@ -515,8 +515,6 @@ function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
             e.stopPropagation()
             e.preventDefault()
 
-            //BLAH
-
             const otherOption = target.parentElement.querySelector(
                 `.pe__tcp_search_results_body_title_option[data-option]:not([data-option='${target.dataset.option}'`
             )
@@ -612,6 +610,26 @@ function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
         .querySelector('.pe__tcp_search_results_wrapper')
         .addEventListener('click', (e) => {
             if (!e.target.matches('.pe__tcp_popover_close')) return
+
+            //return filter options selection to default state
+            const filterOptions = document.querySelectorAll(
+                '.pe__tcp_search_results_body_title .pe__tcp_search_results_body_title_option'
+            )
+            for (const o of filterOptions) {
+                o.dataset.selected = true
+            }
+
+            const searchResultsTable = document.querySelector(
+                '.pe__tcp_search_results_wrapper table.pe__tcp_body-tidy-table'
+            )
+            searchResultsTable.classList.remove(
+                'pe__tcp_search_results_valuematch_hidden'
+            )
+            searchResultsTable.classList.remove(
+                'pe__tcp_search_results_keymatch_hidden'
+            )
+
+            console.log(searchResultsTable)
 
             e.target
                 .closest('.pe__tcp_search_results_wrapper')

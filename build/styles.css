@@ -624,26 +624,24 @@ div.pe__tcp_search_results_body > .pe__tcp_body-tidy-table {
 }
 
 .pe__tcp_search_results_body_title_option {
-    border-radius: 4px;
+    border-radius: 10px;
     padding: 4px;
     user-select: none;
     cursor: pointer;
-    border: 1px solid lightgray;
+    border: 1px solid hsla(235, 6%, 58%, 0.16);
 }
 
 .pe__tcp_search_results_body_title_option[data-selected='true'] {
-    background-color: lightgray;
+    background-color: hsla(235, 6%, 58%, 0.16);
 }
 
 .pe__tcp_search_results_body_title_option[data-selected='false'] {
     background-color: white;
 }
 
+/* hides tcp search results rows */
 table.pe__tcp_search_results_keymatch_hidden
-    tr[data-key-matches='true']:not([data-value-matches='true']) {
-    display: none;
-}
-
+    tr[data-key-matches='true']:not([data-value-matches='true']),
 table.pe__tcp_search_results_valuematch_hidden
     tr[data-value-matches='true']:not([data-key-matches='true']) {
     display: none;
