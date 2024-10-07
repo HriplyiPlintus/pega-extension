@@ -358,6 +358,7 @@ function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
                 {
                     tag: 'div',
                     cls: ['pe__tcp_search_results_wrapper', 'pe__tcp_hidden'],
+                    attrs: { tabindex: '0' },
                     content: [
                         {
                             tag: 'div',
@@ -605,6 +606,20 @@ function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
             document
                 .querySelector('.pe__tcp_search_results_stub')
                 .classList.remove('pe__tcp_hidden')
+
+            tidyViewBody.querySelector('.pe__tcp_search_input input').focus()
+        })
+
+    //handles esc button press. same behavior as clickon on the greyed out popover background
+    tidyViewBody
+        .querySelector('.pe__tcp_search_results_wrapper')
+        .addEventListener('keyup', (e) => {
+            if (e.key === 'Escape') {
+                e.preventDefault()
+                e.stopPropagation()
+
+                e.target.closest('.pe__tcp_search_results_wrapper').click()
+            }
         })
 
     //handles minimized search results popver click
@@ -791,6 +806,10 @@ function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
 
             searchResultsBody.innerHTML = ''
             searchResultsBody.appendChild(resultsMarkup)
+
+            document
+                .querySelector('.pe__tcp_search_results_wrapper')
+                ?.focus({ preventScroll: true })
         })
 
     //click event handler. responsible for tree nodes behavior
