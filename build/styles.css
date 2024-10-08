@@ -237,7 +237,7 @@
 
 .pe__tcp_body-tidy main {
     width: 100%;
-    height: auto;
+    height: 100%;
     box-sizing: border-box;
     overflow: auto;
     display: flex;
@@ -664,4 +664,18 @@ table.pe__tcp_search_results_keymatch_hidden
 table.pe__tcp_search_results_valuematch_hidden
     tr[data-value-matches='true']:not([data-key-matches='true']) {
     display: none;
+}
+
+/* stub section to show when there are nothing to show on the page */
+.pe__tcp_page_view_empty {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    color: #10132e;
+    text-align: center;
+    margin: auto;
+}
+
+.pe__tcp_page_view_empty img {
+    width: 110px;
 }

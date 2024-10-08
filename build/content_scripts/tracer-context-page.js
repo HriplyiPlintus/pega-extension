@@ -340,6 +340,26 @@ function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
                                                 { tag: 'tbody' },
                                             ],
                                         },
+                                        {
+                                            tag: 'div',
+                                            cls: [
+                                                'pe__tcp_page_view_empty',
+                                                'pe__tcp_hidden',
+                                            ],
+                                            content: [
+                                                {
+                                                    tag: 'img',
+                                                    attrs: {
+                                                        src: 'webwb/py-clipboard-large_1174644779.svg!!.svg',
+                                                        alt: 'Select a page',
+                                                    },
+                                                },
+                                                {
+                                                    tag: 'span',
+                                                    content: 'Select a page',
+                                                },
+                                            ],
+                                        },
                                     ],
                                 },
                                 {
@@ -494,13 +514,6 @@ function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
             ],
         })
     )
-
-    /*
-    //set css variable - pure crutch
-    tidyViewBody.style.setProperty(
-        '--crosshair-icon-url',
-        `url(${chrome.runtime.getURL('./assets/img/crosshairs.png')})`
-    ) */
 
     //handles search results filtering options
     document
@@ -858,8 +871,8 @@ function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
                         )
                     }
 
-                    //expand all pages on the way to the target
-                    //find expand button and click on it
+                    /* expand all pages on the way to the target
+                    find expand button and click on it */
                     const expandBtn = pagesTreeNode.querySelector(
                         'div[class|="pe__tcp_tree-node-btn"]'
                     )
@@ -927,6 +940,7 @@ function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
                     'aside .pe__tcp_tree .pe__tcp_tree-node-clicked'
                 )
 
+                //unselect current selection
                 selectedNodes?.forEach((sn) =>
                     sn.classList.remove('pe__tcp_tree-node-clicked')
                 )
@@ -955,6 +969,7 @@ function displayPageProperties(pageName) {
     const pathToArr = pageName.split('.')
 
     //this is for clear page path (without redundant parts)
+    //TODO: replace with prettify function - search for it
     let clearPageTitle = ''
     let prevPageName = ''
 
@@ -1019,9 +1034,12 @@ function displayPageProperties(pageName) {
 
     const oldTbody = contentsTable.querySelector('tbody')
 
+    const emptyPageStub = document.querySelector('.pe__tcp_page_view_empty')
+
     if (pageToShow.find((pts) => pts.type === 'property') === undefined) {
         //hide left panel contents if page doesn't have any property
         contentsTable.classList.add('pe__tcp_hidden')
+        emptyPageStub.classList.remove('pe__tcp_hidden')
     } else {
         const newTbody = templateEngine({
             tag: 'tbody',
@@ -1029,7 +1047,9 @@ function displayPageProperties(pageName) {
         })
 
         contentsTable.replaceChild(newTbody, oldTbody)
+
         contentsTable.classList.remove('pe__tcp_hidden')
+        emptyPageStub.classList.add('pe__tcp_hidden')
     }
 
     //update contents title
@@ -1415,6 +1435,7 @@ function resizableBarHandler() {
     })
 }
 
+//sends message to worker
 function setExtSettings(key, value) {
     if (!key) {
         console.warn('key cannot be empty')
