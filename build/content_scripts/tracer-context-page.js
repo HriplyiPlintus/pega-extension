@@ -495,6 +495,13 @@ function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
         })
     )
 
+    /*
+    //set css variable - pure crutch
+    tidyViewBody.style.setProperty(
+        '--crosshair-icon-url',
+        `url(${chrome.runtime.getURL('./assets/img/crosshairs.png')})`
+    ) */
+
     //handles search results filtering options
     document
         .querySelector('.pe__tcp_search_results_body_title')
@@ -807,9 +814,72 @@ function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
             searchResultsBody.innerHTML = ''
             searchResultsBody.appendChild(resultsMarkup)
 
+            //focuse on popover
             document
                 .querySelector('.pe__tcp_search_results_wrapper')
                 ?.focus({ preventScroll: true })
+        })
+
+    //handle popoerty reference click event
+    tidyViewBody
+        .querySelector(
+            '.pe__tcp_search_results_wrapper .pe__tcp_body-tidy-table'
+        )
+        .addEventListener('click', (e) => {
+            const target = e.target
+
+            //check if click happened on uri element
+            if (
+                target.matches(
+                    '.pe__tcp_body-tidy-table tbody tr td[data-uri] div span:hover'
+                )
+            ) {
+                const uriArr = target.closest('td')?.dataset.uri?.split('.')
+
+                let pagesTreeNode = tidyViewBody.querySelector('.pe__tcp_tree')
+
+                let accumulatedUri = ''
+
+                for (const uri of uriArr) {
+                    accumulatedUri += uri
+
+                    pagesTreeNode = pagesTreeNode.parentElement.querySelector(
+                        `div[data-uri="${accumulatedUri}"`
+                    )
+
+                    //deselect all pages on the way to the target page
+                    if (
+                        pagesTreeNode.classList.contains(
+                            'pe__tcp_tree-node-clicked'
+                        )
+                    ) {
+                        pagesTreeNode.classList.remove(
+                            'pe__tcp_tree-node-clicked'
+                        )
+                    }
+
+                    //expand all pages on the way to the target
+                    //find expand button and click on it
+                    const expandBtn = pagesTreeNode.querySelector(
+                        'div[class|="pe__tcp_tree-node-btn"]'
+                    )
+                    if (
+                        expandBtn.classList.contains(
+                            'pe__tcp_tree-node-btn-expand'
+                        )
+                    ) {
+                        expandBtn.click()
+                    }
+
+                    accumulatedUri += '.'
+                }
+
+                pagesTreeNode.click()
+
+                tidyViewBody
+                    .querySelector('.pe__tcp_search_results_wrapper')
+                    .click()
+            }
         })
 
     //click event handler. responsible for tree nodes behavior
@@ -999,12 +1069,6 @@ function renderClipboardJSONMarkup(cObj, sURI) {
     }
 
     function pushObjectToFlatArr({ uri, key, value }) {
-        /* clipboardFlatArr.push({
-        uri: uri,
-        value: v.value,
-        key: v.key,
-        prettyUri: prettifyPropertyPath(uri),
-    }) */
         clipboardFlatArr.push({
             uri: uri,
             key: key,
@@ -1043,13 +1107,6 @@ function renderClipboardJSONMarkup(cObj, sURI) {
                             key: v.key,
                             value: v.value,
                         })
-                        /*
-                        clipboardFlatArr.push({
-                            uri: uri,
-                            value: v.value,
-                            key: v.key,
-                            prettyUri: prettifyPropertyPath(uri),
-                        }) */
                     }
                 }
 
@@ -1108,13 +1165,6 @@ function renderClipboardJSONMarkup(cObj, sURI) {
                         key: p.key,
                         value: p.value,
                     })
-                    /*
-                    clipboardFlatArr.push({
-                        uri: uri,
-                        value: p.value,
-                        key: p.key,
-                        prettyUri: prettifyPropertyPath(uri),
-                    })*/
                 }
             }
         }
@@ -1156,8 +1206,6 @@ function renderClipboardJSONMarkup(cObj, sURI) {
     }
 }
 
-//TODO: create flat representation of clipboard. this will allow to search for keys or/and values
-
 //template engine
 function templateEngine(block) {
     if (block === undefined || block === null || block === false) {
@@ -1180,7 +1228,6 @@ function templateEngine(block) {
         return fragment
     }
 
-    //experiment
     if (block.tag === 'component') {
         return this.buildComponent(block.name, block.params)
     }
@@ -1354,7 +1401,7 @@ function resizableBarHandler() {
             //the handle bar can't move to the right less than minimum width of the aside element
             handle.style.left = 'var(--aside-min-width)'
             aside.style.width = 'var(--aside-min-width)'
-            mainWrapper.style.width = '100%' // `calc(${window.outerWidth} - var(--aside-min-width))`
+            mainWrapper.style.width = '100%'
         } else if ((x / window.outerWidth) * 100 >= 90) {
             //the handle bar can't move to the left more than 90% of the screen width
             handle.style.left = '90%'
@@ -1428,7 +1475,10 @@ function displaySearchResults(searchResults) {
                     },
                     {
                         tag: 'td',
-                        content: { tag: 'div', content: sr.prettyUri },
+                        content: {
+                            tag: 'div',
+                            content: { tag: 'span', content: sr.prettyUri },
+                        },
                         attrs: { 'data-uri': sr.uri },
                     },
                     {

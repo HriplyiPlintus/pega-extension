@@ -180,6 +180,7 @@
     --main-margin: 1em;
     --search-results-padding: 10%;
     --search-results-content-paddin: 14px;
+    /* --crosshair-icon-url: ''; /* calculated from javascript */
 }
 
 /* Tracer context page classes: header */
@@ -287,6 +288,19 @@
 .pe__tcp_body-tidy-table tbody tr td:last-child div,
 .pe__tcp-body-tidy-table-column-value div {
     padding-left: 1em;
+}
+
+/* .pe__tcp_body-tidy-table tbody tr td[data-uri] div:hover:after {
+    content: var(--crosshair-icon-url);
+    width: 1em;
+    height: 1em;
+} */
+
+.pe__tcp_body-tidy-table tbody tr td[data-uri] div span:hover {
+    cursor: pointer;
+    color: #2b52ff;
+    text-decoration: underline;
+    text-transform: none;
 }
 
 .pe__tcp-body-tidy-table-column-key {
@@ -514,6 +528,7 @@
     display: flex;
     justify-content: center;
     color: black;
+    outline: none;
 }
 
 .pe__tcp_search_results_noitems td {
