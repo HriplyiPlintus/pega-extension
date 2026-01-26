@@ -76,7 +76,7 @@ function appendDeselectOOTBRSBtn() {
 
         if (enableAll) {
             const checkbox = enableAll.querySelector('input')
-            if (checkbox.checked) {
+            if (checkbox && checkbox.checked) {
                 checkbox.click()
             }
         }
@@ -89,8 +89,8 @@ function appendDeselectOOTBRSBtn() {
 
         if (OOTBRulesets.length > 0) {
             OOTBRulesets.forEach((rs) => {
-                const checkbox = rs.querySelector('input')
-                if (checkbox.checked) {
+                const checkbox = rs.closest('tr')?.querySelector('input')
+                if (checkbox && checkbox.checked) {
                     checkbox.click()
                 }
             })
