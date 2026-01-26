@@ -53,9 +53,8 @@ Extension settings synced between browsers
 
 #TODO:
 
-0. TCP view search
 1. check tab switch with different shortcuts for win and mac
-2. make new shortcut work without pega page refresh. party implemented, look at getExtensionSettings() definition. but it's dev portal's initiative, should be popup's
+2. make new shortcut work without pega page refresh. partly implemented, look at getExtensionSettings() definition. but it's dev portal's initiative, should be popup's
 3. clipboard pages prioritization doesn't work properly in VDI. double check
 4. implement decode base64 functionality for any selected text - like confluence comments work - https://stackoverflow.com/a/64513026/17654999
 5. add new tab in popup: Buddy - proxy to pega knowledgebase
@@ -93,3 +92,11 @@ value: 'value'
 })
 
 -   for now viewMode stored directly in settings with 'tcp-viewMode' key //TODO: include project prefix
+
+#Hot to sneak install to your closed workstation
+1. Get your build and zip it
+2. Encode in base64. You can use any online tool, for example https://base64.guru/converter/encode/file
+3. Use online clipboard (https://online-clipboard.online/online-clipboard/) or send resulting text to you machine that is closed to the world
+4. Use guide from the page https://www.geeksforgeeks.org/how-to-convert-base64-to-file-in-javascript/, but make it zip and MIME: application/zip
+5. Modify downloaded file's properties: mark it as trusted
+6. Extract contents and add to your browser

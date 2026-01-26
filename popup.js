@@ -404,13 +404,6 @@ class Popup {
                     })
                 )
 
-                const tabSwitchShortcut = root.appendChild(
-                    this.templateEngine({
-                        tag: 'component',
-                        name: 'setting-tab-switch-shortcut',
-                    })
-                )
-
                 //probably redundant
                 const eventTraceSettings = root.appendChild(
                     this.templateEngine({
@@ -418,6 +411,26 @@ class Popup {
                         name: 'setting-event-trace-persist-state',
                     })
                 )
+
+                console.log('!!!!!!! setting-dev-studio-enh rendering')
+                //params dataCompId sets component id for example to control visibility
+                root.appendChild(
+                    this.templateEngine({
+                        tag: 'component',
+                        name: 'setting-dev-studio-enh',
+                        params: {
+                            dataCompId: 'dse',
+                        },
+                    })
+                )
+
+                /*
+                const tabSwitchShortcut = root.appendChild(
+                    this.templateEngine({
+                        tag: 'component',
+                        name: 'setting-tab-switch-shortcut',
+                    })
+                ) */
 
                 break
             case 'contact':
@@ -681,24 +694,70 @@ class Popup {
                 //control to capture tab switch shortcut
                 //loads from external file, depends on this function
                 //TODO: replace with defined contract
+                const dataCompId = paramsObj.dataCompId || ''
                 const tabSwitchSettingControl =
-                    popupUILib.settingTabSwitchShortcut(this)
+                    popupUILib.settingTabSwitchShortcut(this, dataCompId)
 
                 resultComponent.appendChild(tabSwitchSettingControl)
 
                 break
             case 'setting-event-trace-persist-state':
                 /* control to capture default width and height settings
-                for tracer event window - tracer-context-page */
+                for tracer event window and many more - tracer-context-page */
                 //loads from external file
-                const tracerEventWindowDimensions =
-                    popupUILib.tracerEventWindowDimensions({
-                        renderEngine: this.templateEngine.bind(this),
-                        currentState: this.extensionSettings.get('tcp-enabled'),
-                        setStateFu: this.extensionSettings.set,
-                    })
+                const tracerEventWindowEnh = popupUILib.tracerEventWindowEnh({
+                    renderEngine: this.templateEngine.bind(this),
+                    currentState: this.extensionSettings.get('tcp-enabled'),
+                    setStateFu: this.extensionSettings.set,
+                    stateAttr: 'tcp-enabled',
+                })
 
-                resultComponent.appendChild(tracerEventWindowDimensions)
+                resultComponent.appendChild(tracerEventWindowEnh)
+                break
+            case 'setting-dev-studio-enh':
+                //get data comp id from params. if empty set it to be current timestamp
+                const dataCompIdMain = paramsObj.dataCompId ?? Date.now()
+                const dataCompIdSwitchShortcut = dataCompIdMain + '__tab-switch'
+
+                const tabSwitchComp = this.templateEngine({
+                    tag: 'component',
+                    name: 'setting-tab-switch-shortcut',
+                    params: {
+                        dataCompId: dataCompIdSwitchShortcut,
+                    },
+                })
+
+                const devStudioEnhCurrState =
+                    this.extensionSettings.get('dev-studio-enabled')
+
+                if (!devStudioEnhCurrState) {
+                    console.log('###', tabSwitchComp)
+                    tabSwitchComp.firstChild.classList.add('pe__display-none')
+                }
+
+                //enables additional icons and ability to copy pzinskey and signature
+                const devStudioEnh = popupUILib.devStudioEnh({
+                    renderEngine: this.templateEngine.bind(this),
+                    currentState: devStudioEnhCurrState,
+                    setStateFu: (key, isEnabled) => {
+                        this.extensionSettings.set(key, isEnabled)
+
+                        const tsComp = this.root.querySelector(
+                            `[data-comp-id="${dataCompIdSwitchShortcut}"]`
+                        )
+
+                        console.log('⚠️', tsComp)
+                        if (isEnabled) {
+                            tsComp?.classList.remove('pe__display-none')
+                        } else {
+                            tsComp?.classList.add('pe__display-none')
+                        }
+                    },
+                    stateAttr: 'dev-studio-enabled',
+                })
+                resultComponent.appendChild(devStudioEnh)
+
+                resultComponent.appendChild(tabSwitchComp)
                 break
             case 'header-nav-arrow-back':
                 //back arrow for header breadcrumbs (but may be used in other scenarios as well)

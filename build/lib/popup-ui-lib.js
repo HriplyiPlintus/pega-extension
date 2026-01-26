@@ -21,8 +21,9 @@ sysKeyDisplay
  */
 /*
 interface: markup bilder function, current settings, set new hotkey function
+data-comp-id - id to control visibility. sometimes it's necessary to show or hide certain settings
 */
-function settingTabSwitchShortcut(context) {
+function settingTabSwitchShortcut(context, dataCmopId) {
     //markup with handlers
     const settings = {
         context: context,
@@ -159,6 +160,7 @@ function settingTabSwitchShortcut(context) {
         markup: {
             tag: 'div',
             cls: 'setting-row-wrapper',
+            attrs: { 'data-comp-id': dataCmopId },
             content: {
                 tag: 'div',
                 cls: 'setting-item',
@@ -329,17 +331,47 @@ function buildSettingRow({ label, infoContentArr, controlContentArr }) {
 
 /* Sets up tracer context page improvements settings
 If current state is not received, false will be used */
-function tracerEventWindowDimensions({
-    label,
-    infoContentArr,
-    controlContentArr,
+function tracerEventWindowEnh({
     renderEngine,
     currentState,
     setStateFu,
+    stateAttr,
 }) {
-    const markup = buildSettingRow({
+    return toggleSwitchBasic({
         label: 'Tracer context page view improvements',
         infoContentArr: ['Enables Tidy View and persists window state'],
+        renderEngine,
+        currentState,
+        setStateFu,
+        stateAttr,
+    })
+}
+
+/* enables additional icons to copy pzinskey and signature
+tab switch and tabs moving */
+function devStudioEnh({ renderEngine, currentState, setStateFu, stateAttr }) {
+    return toggleSwitchBasic({
+        label: 'Dev Studio enhancements',
+        infoContentArr: ['Enables tabs move, helper icons and more'],
+        renderEngine,
+        currentState,
+        setStateFu,
+        stateAttr,
+    })
+}
+
+/* generalized control */
+function toggleSwitchBasic({
+    label,
+    infoContentArr,
+    renderEngine,
+    currentState,
+    setStateFu,
+    stateAttr,
+}) {
+    const markup = buildSettingRow({
+        label: label,
+        infoContentArr: infoContentArr,
         controlContentArr: [
             {
                 tag: 'component',
@@ -355,10 +387,10 @@ function tracerEventWindowDimensions({
                                 if (target.matches('input[type="checkbox"]')) {
                                     if (target.hasAttribute('checked')) {
                                         target.removeAttribute('checked')
-                                        setStateFu('tcp-enabled', false)
+                                        setStateFu(stateAttr, false)
                                     } else {
                                         target.setAttribute('checked', true)
-                                        setStateFu('tcp-enabled', true)
+                                        setStateFu(stateAttr, true)
                                     }
                                 }
                             },
@@ -374,5 +406,6 @@ function tracerEventWindowDimensions({
 
 const popupUILib = {
     settingTabSwitchShortcut: settingTabSwitchShortcut,
-    tracerEventWindowDimensions: tracerEventWindowDimensions,
+    tracerEventWindowEnh: tracerEventWindowEnh,
+    devStudioEnh: devStudioEnh,
 }

@@ -442,4 +442,8 @@ input.setting-input-field:hover {
     cursor: pointer;
 }
 
+.pe__display-none {
+    display: none;
+}
+
 /* tab switch control */
