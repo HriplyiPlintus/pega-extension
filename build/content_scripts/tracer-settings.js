@@ -20,7 +20,7 @@ const eventTypes = [
 
 //generates standard button, only title is necessary
 function generateSettingsButton(title) {
-    return templateEngine({
+    const td = templateEngine({
         tag: 'td',
         cls: 'dataLabelStyle',
         content: [
@@ -39,11 +39,6 @@ function generateSettingsButton(title) {
                             {
                                 tag: 'span',
                                 cls: 'buttonText',
-                                attrs: {
-                                    onmouseout: 'this.className="buttonText"',
-                                    onmouseover:
-                                        'this.className="buttonTextHover"',
-                                },
                                 content: title,
                             },
                         ],
@@ -56,6 +51,10 @@ function generateSettingsButton(title) {
             },
         ],
     })
+    const span = td.querySelector('.buttonText')
+    span.addEventListener('mouseover', () => (span.className = 'buttonTextHover'))
+    span.addEventListener('mouseout', () => (span.className = 'buttonText'))
+    return td
 }
 
 function appendDeselectOOTBRSBtn() {
@@ -98,7 +97,7 @@ function appendDeselectOOTBRSBtn() {
     })
 }
 
-function appednSelectAllEvenTypes() {
+function appendSelectAllEventTypes() {
     const setsBtn = document.querySelector(
         '#EventTypesDisplay td.tdLeftStyle > table > tbody > tr'
     )
@@ -118,7 +117,7 @@ function appednSelectAllEvenTypes() {
     })
 }
 
-function appednDeselectAllEvenTypes() {
+function appendDeselectAllEventTypes() {
     const setsBtn = document.querySelector(
         '#EventTypesDisplay td.tdLeftStyle > table > tbody > tr'
     )
@@ -142,8 +141,8 @@ function appednDeselectAllEvenTypes() {
 function extendRulesetsSets() {
     appendDeselectOOTBRSBtn()
 
-    appednSelectAllEvenTypes()
-    appednDeselectAllEvenTypes()
+    appendSelectAllEventTypes()
+    appendDeselectAllEventTypes()
 }
 
 //template engine
