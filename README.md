@@ -49,17 +49,17 @@ Extension settings synced between browsers
 
 # Building for Chrome Web Store
 
-Run the build script from the project root:
+| Command | Description |
+|---|---|
+| `just release` | Bumps patch version in `manifest.json`, builds zip, opens output folder |
+| `just build` | Builds zip with current version, no version change |
+| `just clean` | Removes previously generated zip files |
+| `just format` | Formats all source files with prettier |
 
-```bash
-npm run build
-```
+The zip is created in the parent directory (e.g. `../pega-extension-0.0.1.0.zip`).
+It includes: `manifest.json`, `popup.html`, `popup.js`, `popup.css`, `build/`, `assets/` (excluding `backup/`).
 
-This will create a zip file ready for Chrome Web Store submission (e.g. `pega-extension-0.0.0.2.zip`) in the parent directory.
-
-The zip includes: `manifest.json`, `popup.html`, `popup.js`, `popup.css`, `build/`, `assets/` (excluding `backup/`).
-
-Before publishing, update the `version` field in `manifest.json` — the zip filename is derived from it automatically.
+Version format is `major.minor.patch.build`. `just release` auto-increments the rightmost component and carries over (e.g. `0.0.0.99` → `0.0.1.0`).
 
 #How to start development
 

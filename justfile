@@ -5,9 +5,14 @@
 default:
     @just --list
 
-# Create a zip ready for Chrome Web Store submission
+# Create a zip without changing the version
 build:
     bash build.sh
+
+# Bump patch version (carries over to minor/major at 99) then build and open output folder
+release:
+    bash build.sh --bump
+    open ..
 
 # Format all source files with prettier
 format:
@@ -21,7 +26,3 @@ install:
 clean:
     rm -f ../pega-extension-*.zip
     @echo "Cleaned up build artifacts"
-
-# Build and open the output directory
-release: build
-    open ..
