@@ -47,6 +47,20 @@ Extension settings synced between browsers
 
 -   Dev Studio tabs reordered in initial state after browser tab refresh - no plans to fix this
 
+# Building for Chrome Web Store
+
+Run the build script from the project root:
+
+```bash
+npm run build
+```
+
+This will create a zip file ready for Chrome Web Store submission (e.g. `pega-extension-0.0.0.2.zip`) in the parent directory.
+
+The zip includes: `manifest.json`, `popup.html`, `popup.js`, `popup.css`, `build/`, `assets/` (excluding `backup/`).
+
+Before publishing, update the `version` field in `manifest.json` — the zip filename is derived from it automatically.
+
 #How to start development
 
 1. Reinstall the extension
