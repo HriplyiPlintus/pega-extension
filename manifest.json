@@ -1,7 +1,7 @@
 {
     "name": "Pega Extension",
     "description": "Extends Pega functionality",
-    "version": "0.0.0.2",
+    "version": "0.0.0.3",
     "manifest_version": 3,
     "icons": {
         "16": "assets/img/icon.png",
@@ -21,8 +21,16 @@
             "128": "assets/img/icon.png"
         }
     },
-    "permissions": ["storage", "tabs", "scripting", "activeTab"],
-    "host_permissions": ["https://*/*", "http://*/*"],
+    "permissions": [
+        "storage",
+        "tabs",
+        "scripting",
+        "activeTab"
+    ],
+    "host_permissions": [
+        "https://*/*",
+        "http://*/*"
+    ],
     "web_accessible_resources": [
         {
             "resources": [
@@ -43,7 +51,10 @@
                 "assets/img/tidy.png",
                 "build/styles.css"
             ],
-            "matches": ["https://*/*", "http://*/*"]
+            "matches": [
+                "https://*/*",
+                "http://*/*"
+            ]
         }
     ]
 }
