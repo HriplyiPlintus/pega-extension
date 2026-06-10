@@ -39,6 +39,119 @@ const PAGE_CONFIGS = [
 
 getExtensionSettings()
 
+/* ── Tab color marker ──
+Adds a colored dot to the favicon of tabs that match a project URL */
+
+//this function is injected into the page context via executeScript
+//params: { color, tabTitle } — color for favicon dot, tabTitle to override document.title
+function applyTabMarker(params) {
+    const { color, tabTitle } = params || {}
+
+    //── replace favicon with colored circle ──
+    if (color) {
+        const existing = document.querySelector('link[data-pega-marker]')
+        if (existing && existing.dataset.pegaColor === color) {
+            //already set, skip
+        } else {
+            if (existing) existing.remove()
+
+            const size = 32
+            const canvas = document.createElement('canvas')
+            canvas.width = size
+            canvas.height = size
+            const ctx = canvas.getContext('2d')
+
+            //full-size colored circle
+            const half = size / 2
+            ctx.beginPath()
+            ctx.arc(half, half, half, 0, Math.PI * 2)
+            ctx.fillStyle = color
+            ctx.fill()
+
+            const link = document.createElement('link')
+            link.rel = 'icon'
+            link.type = 'image/png'
+            link.href = canvas.toDataURL('image/png')
+            link.dataset.pegaMarker = 'true'
+            link.dataset.pegaColor = color
+
+            document
+                .querySelectorAll('link[rel="icon"], link[rel="shortcut icon"]')
+                .forEach((el) => {
+                    if (!el.dataset.pegaMarker) el.remove()
+                })
+
+            document.head.appendChild(link)
+        }
+    }
+
+    //── tab title override ──
+    if (tabTitle) {
+        //store original title so we can restore later
+        if (!document.documentElement.dataset.pegaOrigTitle) {
+            document.documentElement.dataset.pegaOrigTitle = document.title
+        }
+        document.title = tabTitle
+    } else if (document.documentElement.dataset.pegaOrigTitle) {
+        //title was cleared while the marker still applies (e.g. color kept) — restore
+        document.title = document.documentElement.dataset.pegaOrigTitle
+        delete document.documentElement.dataset.pegaOrigTitle
+    }
+}
+
+function removeTabMarker() {
+    //restore favicon
+    const marker = document.querySelector('link[data-pega-marker]')
+    if (marker) marker.remove()
+
+    //restore original title
+    const origTitle = document.documentElement.dataset.pegaOrigTitle
+    if (origTitle) {
+        document.title = origTitle
+        delete document.documentElement.dataset.pegaOrigTitle
+    }
+}
+
+//check a single tab against projects and apply/remove marker
+function markTab(tabId, tabUrl) {
+    const projects = extensionSettingsCached?.projects || []
+
+    const match = projects.find(
+        (p) => p.enabled && tabUrl && tabUrl.includes(p.url)
+    )
+
+    if (match && (match.color || match.tabTitle)) {
+        chrome.scripting
+            .executeScript({
+                target: { tabId },
+                func: applyTabMarker,
+                args: [{
+                    color: match.color || null,
+                    tabTitle: match.tabTitle || null,
+                }],
+            })
+            .catch(() => {})
+    } else {
+        chrome.scripting
+            .executeScript({
+                target: { tabId },
+                func: removeTabMarker,
+            })
+            .catch(() => {})
+    }
+}
+
+//mark all open tabs that match project URLs
+function markAllTabs() {
+    chrome.tabs.query({}, (tabs) => {
+        for (const tab of tabs) {
+            if (tab.id && tab.url) {
+                markTab(tab.id, tab.url)
+            }
+        }
+    })
+}
+
 // Helpers for processedTabs persisted in session storage.
 // chrome.storage.session survives SW wake cycles within a browser session,
 // unlike in-memory variables which reset every time the service worker restarts.
@@ -83,6 +196,11 @@ function setExtensionStatusIcon() {
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     setExtensionStatusIcon()
 
+    //mark tab with project color on every complete load
+    if (changeInfo.status === 'complete' && tab.url) {
+        markTab(tabId, tab.url)
+    }
+
     //exit if tab already processed
     const processedTabs = await getProcessedTabs()
     if (processedTabs.has(tabId)) {
@@ -125,7 +243,10 @@ function injectJavascript(tabId, jsFilesArr, callback) {
             }
         })
         .catch((err) => {
-            if (!err.message?.includes('Cannot access')) {
+            if (
+                !err.message?.includes('Cannot access') &&
+                !err.message?.includes('error page')
+            ) {
                 console.error('[pega-ext] inject error:', err)
             }
         })
@@ -175,7 +296,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             }
         })
 
-        getExtensionSettings()
+        //refresh settings cache, then re-mark all tabs with updated project colors
+        chrome.storage.sync
+            .get('settings')
+            .then((result) => {
+                extensionSettingsCached = result.settings
+                markAllTabs()
+            })
+            .catch(() => {})
     } else if (
         message.type === 'settingsSet' &&
         message.sender === 'pega-extension'
@@ -238,6 +366,12 @@ function updateExtensionSetting(key, value) {
 //sync between browser should trigger settings refresh. not tested at all
 chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'sync') {
-        getExtensionSettings()
+        chrome.storage.sync
+            .get('settings')
+            .then((result) => {
+                extensionSettingsCached = result.settings
+                markAllTabs()
+            })
+            .catch(() => {})
     }
 })
