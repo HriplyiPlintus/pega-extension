@@ -1795,6 +1795,19 @@ class Popup {
                 this.buildPage('projects')
             })
 
+        //Enabled toggle — persist on/off state
+        projectCard
+            .querySelector('.toggle-switch input[type="checkbox"]')
+            ?.addEventListener('change', (e) => {
+                console.log('toggle project:', id, e.target.checked)
+                const currentProjects = this.settings?.projects || []
+                const project = currentProjects.find((p) => p.id === id)
+                if (project) {
+                    project.enabled = e.target.checked
+                    this.extensionSettings.set('projects', currentProjects)
+                }
+            })
+
         //Details button — clear tab, show only edit form
         projectCard
             .querySelector('.action-details')
