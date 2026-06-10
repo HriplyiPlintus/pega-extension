@@ -117,7 +117,7 @@ function markTab(tabId, tabUrl) {
     const projects = extensionSettingsCached?.projects || []
 
     const match = projects.find(
-        (p) => p.enabled && tabUrl && tabUrl.includes(p.url)
+        (p) => p.enabled && p.url && tabUrl && tabUrl.includes(p.url)
     )
 
     if (match && (match.color || match.tabTitle)) {
@@ -184,7 +184,7 @@ function setExtensionStatusIcon() {
 
             const urls = settings.map((s) => s.url)
 
-            const isActive = urls.length > 0 && urls.some((url) => activeTab.url.includes(url))
+            const isActive = urls.length > 0 && urls.some((url) => url && activeTab.url.includes(url))
             chrome.action.setIcon({
                 path: isActive ? '/assets/img/icon-38.png' : '/assets/img/icon_grey-38.png',
             })
