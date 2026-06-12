@@ -39,6 +39,42 @@ const PAGE_CONFIGS = [
 
 getExtensionSettings()
 
+/* settings enabled by default. seeded into storage only when the key is
+missing, so an explicit user 'off' is never overridden */
+const DEFAULT_SETTINGS = {
+    'tcp-enabled': true,
+    'dev-studio-enabled': true,
+}
+
+chrome.runtime.onInstalled.addListener(() => {
+    chrome.storage.sync
+        .get('settings')
+        .then((result) => {
+            const stored = result.settings
+            //normalize: guards against a legacy array-shaped settings root
+            const settings =
+                stored && typeof stored === 'object' && !Array.isArray(stored)
+                    ? stored
+                    : {}
+            let changed = false
+
+            for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
+                if (!(key in settings)) {
+                    settings[key] = value
+                    changed = true
+                }
+            }
+
+            if (changed) {
+                extensionSettingsCached = settings
+                return chrome.storage.sync.set({ settings })
+            }
+        })
+        .catch((err) =>
+            console.error('Failed to seed default settings', err)
+        )
+})
+
 /* ── Tab color marker ──
 Adds a colored dot to the favicon of tabs that match a project URL */
 
@@ -49,6 +85,18 @@ function applyTabMarker(params) {
 
     //── replace favicon with colored circle ──
     if (color) {
+        //disable original favicon links instead of removing them, so they can be
+        //restored when the color is cleared. [rel~="icon"] is token-based and also
+        //catches "shortcut icon", "alternate icon" etc. runs on every pass since
+        //pages may re-add icon links dynamically; idempotent because disabled
+        //links no longer match the selector
+        document.querySelectorAll('link[rel~="icon" i]').forEach((el) => {
+            if (!el.dataset.pegaMarker) {
+                el.dataset.pegaOrigRel = el.rel
+                el.rel = 'pega-disabled'
+            }
+        })
+
         const existing = document.querySelector('link[data-pega-marker]')
         if (existing && existing.dataset.pegaColor === color) {
             //already set, skip
@@ -71,18 +119,32 @@ function applyTabMarker(params) {
             const link = document.createElement('link')
             link.rel = 'icon'
             link.type = 'image/png'
+            link.setAttribute('sizes', '32x32')
             link.href = canvas.toDataURL('image/png')
             link.dataset.pegaMarker = 'true'
             link.dataset.pegaColor = color
 
-            document
-                .querySelectorAll('link[rel="icon"], link[rel="shortcut icon"]')
-                .forEach((el) => {
-                    if (!el.dataset.pegaMarker) el.remove()
-                })
-
             document.head.appendChild(link)
         }
+    } else {
+        //color was cleared while the marker still applies (e.g. title kept) — restore favicon
+        const marker = document.querySelector('link[data-pega-marker]')
+        if (marker) marker.remove()
+
+        const disabled = document.querySelectorAll('link[data-pega-orig-rel]')
+        if (marker && disabled.length === 0) {
+            //the browser re-evaluates favicons only on icon-link insertion or
+            //rel/href mutation, not on removal — on pages without their own
+            //icon links, insert the default candidate to force the dot off
+            const fallback = document.createElement('link')
+            fallback.rel = 'icon'
+            fallback.href = '/favicon.ico'
+            document.head.appendChild(fallback)
+        }
+        disabled.forEach((el) => {
+            el.rel = el.dataset.pegaOrigRel
+            delete el.dataset.pegaOrigRel
+        })
     }
 
     //── tab title override ──
@@ -103,6 +165,22 @@ function removeTabMarker() {
     //restore favicon
     const marker = document.querySelector('link[data-pega-marker]')
     if (marker) marker.remove()
+
+    //re-enable original favicon links disabled by applyTabMarker
+    const disabled = document.querySelectorAll('link[data-pega-orig-rel]')
+    if (marker && disabled.length === 0) {
+        //the browser re-evaluates favicons only on icon-link insertion or
+        //rel/href mutation, not on removal — on pages without their own
+        //icon links, insert the default candidate to force the dot off
+        const fallback = document.createElement('link')
+        fallback.rel = 'icon'
+        fallback.href = '/favicon.ico'
+        document.head.appendChild(fallback)
+    }
+    disabled.forEach((el) => {
+        el.rel = el.dataset.pegaOrigRel
+        delete el.dataset.pegaOrigRel
+    })
 
     //restore original title
     const origTitle = document.documentElement.dataset.pegaOrigTitle
@@ -172,56 +250,95 @@ async function deleteProcessedTab(tabId) {
     await chrome.storage.session.set({ processedTabs: [...tabs] })
 }
 
-//changes extension icon from active to not active and vice versa
-function setExtensionStatusIcon() {
-    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-        const activeTab = tabs[0]
+/* the extension is considered active on a tab when it does something there:
+the tab belongs to an enabled project (color/title markers, tab switch etc.)
+or extension content scripts were injected into it (tracer tools, dev studio
+enhancements) */
+async function isExtensionActiveOnTab(tab) {
+    if (!tab?.id) return false
 
-        chrome.storage.sync.get('settings').then((result) => {
-            const settings = Array.isArray(result.settings)
-                ? result.settings
-                : []
+    //read storage directly: the in-memory cache may be empty right after
+    //a service worker cold start
+    const { settings } = await chrome.storage.sync.get('settings')
+    const projects = settings?.projects || []
 
-            const urls = settings.map((s) => s.url)
+    const matchesProject = projects.some(
+        (p) => p.enabled && p.url && tab.url && tab.url.includes(p.url)
+    )
+    if (matchesProject) return true
 
-            const isActive = urls.length > 0 && urls.some((url) => url && activeTab.url.includes(url))
+    const processedTabs = await getProcessedTabs()
+    return processedTabs.has(tab.id)
+}
+
+/* sets the toolbar icon for a specific tab. tab-scoped icons follow tab and
+window switches automatically and reset to the (grey) default on navigation */
+function setTabStatusIcon(tabId, tab) {
+    isExtensionActiveOnTab(tab)
+        .then((isActive) =>
             chrome.action.setIcon({
-                path: isActive ? '/assets/img/icon-38.png' : '/assets/img/icon_grey-38.png',
+                tabId: tabId,
+                path: isActive
+                    ? '/assets/img/icon-38.png'
+                    : '/assets/img/icon_grey-38.png',
             })
-        })
+        )
+        .catch(() => {}) //tab may be gone by the time the icon is set
+}
+
+//refresh icons for all open tabs. used when settings change
+function refreshAllTabIcons() {
+    chrome.tabs.query({}, (tabs) => {
+        for (const t of tabs) {
+            if (t.id) setTabStatusIcon(t.id, t)
+        }
     })
 }
 
 //tab loading event: fresh load/refresh
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-    setExtensionStatusIcon()
-
     //mark tab with project color on every complete load
     if (changeInfo.status === 'complete' && tab.url) {
         markTab(tabId, tab.url)
     }
 
-    //exit if tab already processed
-    const processedTabs = await getProcessedTabs()
-    if (processedTabs.has(tabId)) {
-        return
-    }
+    try {
+        /* a navigation or reload wipes injected scripts — drop the processed
+        membership so the new page is re-evaluated (and the icon recomputed).
+        return right away: at this point tab.title still belongs to the
+        OUTGOING page, so falling through could match and inject against the
+        wrong page. later title/complete events carry the new page's title */
+        if (changeInfo.status === 'loading') {
+            await deleteProcessedTab(tabId)
+            return
+        }
 
-    await addProcessedTab(tabId)
+        //exit if tab already processed
+        const processedTabs = await getProcessedTabs()
+        if (processedTabs.has(tabId)) {
+            return
+        }
 
-    const isComplete = changeInfo.status === 'complete'
-    const matched = PAGE_CONFIGS.find(
-        (cfg) => tab.title.includes(cfg.titleMatch) && (!cfg.requireComplete || isComplete)
-    )
+        await addProcessedTab(tabId)
 
-    if (matched) {
-        injectJavascript(tabId, matched.scripts)
-        if (matched.css) injectCSS(tabId)
-    } else if (isComplete) {
-        injectJavascript(tabId, ['./build/content-checker.js'])
-        await deleteProcessedTab(tabId) //tab might not be ready yet and should be processed later
-    } else {
-        await deleteProcessedTab(tabId) //tab might not be ready yet and should be processed later
+        const isComplete = changeInfo.status === 'complete'
+        const matched = PAGE_CONFIGS.find(
+            (cfg) => tab.title.includes(cfg.titleMatch) && (!cfg.requireComplete || isComplete)
+        )
+
+        if (matched) {
+            injectJavascript(tabId, matched.scripts)
+            if (matched.css) injectCSS(tabId)
+        } else if (isComplete) {
+            injectJavascript(tabId, ['./build/content-checker.js'])
+            await deleteProcessedTab(tabId) //tab might not be ready yet and should be processed later
+        } else {
+            await deleteProcessedTab(tabId) //tab might not be ready yet and should be processed later
+        }
+    } finally {
+        /* refresh icon after the processedTabs add/delete dance settles,
+        so a transient membership never sticks as a wrong icon state */
+        setTabStatusIcon(tabId, tab)
     }
 })
 
@@ -268,13 +385,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log('message received', message)
     //request for extension settings from content script
     if (message.message === 'getSettings') {
-        let payload = getExtensionSettings()
-
-        if (sendResponse) {
-            sendResponse({
-                payload: payload,
+        /* respond from storage rather than the in-memory cache: the cache is
+        empty right after a service worker cold start. merging the defaults
+        keeps them effective even if the install-time seeding failed */
+        chrome.storage.sync
+            .get('settings')
+            .then((result) => {
+                sendResponse({
+                    payload: { ...DEFAULT_SETTINGS, ...(result.settings ?? {}) },
+                })
             })
-        }
+            .catch(() => sendResponse({ payload: { ...DEFAULT_SETTINGS } }))
+
+        return true //keep the message channel open for the async response
     } else if (
         message.type === 'settingsUpdated' &&
         message.sender === 'pega-extension'
@@ -302,6 +425,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             .then((result) => {
                 extensionSettingsCached = result.settings
                 markAllTabs()
+                refreshAllTabIcons()
             })
             .catch(() => {})
     } else if (
@@ -317,16 +441,30 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (tabId && message.script) {
         injectJavascript(tabId, [`./build/content_scripts/${message.script}`])
         addProcessedTab(tabId)
+            .then(() => setTabStatusIcon(tabId, sender.tab))
+            .catch(() => {})
     }
 
     if (tabId && message.styles) {
         injectCSS(tabId)
         addProcessedTab(tabId)
+            .then(() => setTabStatusIcon(tabId, sender.tab))
+            .catch(() => {})
     }
 })
 
-//extension activeness indicator: switching extension icon depending on tab url
-chrome.tabs.onActivated.addListener(setExtensionStatusIcon)
+/* extension activeness indicator: per-tab icons follow tab switches on their
+own, but tabs opened before the service worker started have no tab-scoped
+icon yet — evaluate them on first activation */
+chrome.tabs.onActivated.addListener((activeInfo) => {
+    chrome.tabs
+        .get(activeInfo.tabId)
+        .then((tab) => setTabStatusIcon(activeInfo.tabId, tab))
+        .catch(() => {})
+})
+
+//tabs restored on browser startup have no tab-scoped icon yet
+chrome.runtime.onStartup.addListener(() => refreshAllTabIcons())
 
 /* get cached settings and update cache with new settings from synced storage
 browser closes connection for sending message before getting new data from
@@ -371,6 +509,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
             .then((result) => {
                 extensionSettingsCached = result.settings
                 markAllTabs()
+                refreshAllTabIcons()
             })
             .catch(() => {})
     }

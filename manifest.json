@@ -14,12 +14,7 @@
     },
     "action": {
         "default_popup": "popup.html",
-        "default_icon": {
-            "16": "assets/img/icon.png",
-            "32": "assets/img/icon.png",
-            "48": "assets/img/icon.png",
-            "128": "assets/img/icon.png"
-        }
+        "default_icon": "assets/img/icon_grey-38.png"
     },
     "permissions": [
         "storage",
