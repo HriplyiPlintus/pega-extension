@@ -2,6 +2,10 @@
 let clipboardJSON = null
 const clipboardFlatArr = []
 
+/* page messages (errors) mapped to tree nodes
+[{uri, propertyKey, messages: []}] */
+let clipboardMessagesArr = []
+
 /*local copy of settings. the idea here is to minimize updates 
 while keeping continuously requesting dimensions */
 let windowSizeSetting = {}
@@ -205,6 +209,9 @@ function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
 
     const clipboardJSONMarkup = renderClipboardJSONMarkup(contextPageJSON)
 
+    //map page messages (errors) to tree node uris
+    clipboardMessagesArr = resolveMessageReferences(contextPageJSON)
+
     console.log('flat representation', clipboardFlatArr)
 
     //add custom class to control visibility later
@@ -304,6 +311,15 @@ function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
                                         {
                                             tag: 'div',
                                             cls: 'pe__tcp_body-tidy-header',
+                                        },
+                                        {
+                                            /* page messages (errors) banner,
+                                            filled in when the displayed page has messages */
+                                            tag: 'div',
+                                            cls: [
+                                                'pe__tcp_page_messages',
+                                                'pe__tcp_hidden',
+                                            ],
                                         },
                                         {
                                             tag: 'table',
@@ -514,6 +530,37 @@ function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
             ],
         })
     )
+
+    //highlight tree nodes of pages that contain messages (errors)
+    for (const m of clipboardMessagesArr) {
+        const warningNode = tidyViewBody.querySelector(
+            `.pe__tcp_tree-node-wrapper[data-uri="${CSS.escape(m.uri)}"]`
+        )
+
+        if (!warningNode) continue
+
+        warningNode.classList.add('pe__tcp_tree-node-warning')
+
+        //expand collapsed parent pages so the warning node is visible
+        let parentUl = warningNode.closest('li')?.parentElement
+
+        while (parentUl?.matches('ul')) {
+            parentUl.classList.remove('pe__tcp_hidden')
+
+            const parentLi = parentUl.closest('li')
+
+            if (!parentLi) break
+
+            const expandBtn = parentLi.querySelector(
+                ':scope > .pe__tcp_tree-node-wrapper .pe__tcp_tree-node-btn-expand'
+            )
+
+            expandBtn?.classList.remove('pe__tcp_tree-node-btn-expand')
+            expandBtn?.classList.add('pe__tcp_tree-node-btn-collapse')
+
+            parentUl = parentLi.parentElement
+        }
+    }
 
     //handles search results filtering options
     document
@@ -1004,30 +1051,48 @@ function displayPageProperties(pageName) {
         }
     }
 
+    //messages (errors) attached to this page or its properties
+    const pageMessages = clipboardMessagesArr.filter((m) => m.uri === pageName)
+
+    const propsWithMessages = pageMessages
+        .filter((m) => m.propertyKey)
+        .map((m) => m.propertyKey)
+
     const propsObjArr = []
 
-    for (const p of pageToShow) {
-        if (p.type === 'property') {
-            propsObjArr.push({
-                tag: 'tr',
-                content: [
-                    {
-                        tag: 'td',
-                        content: {
-                            tag: 'div',
-                            content: p.key,
-                        },
-                    },
-                    {
-                        tag: 'td',
-                        content: {
-                            tag: 'div',
-                            content: p.value,
-                        },
-                    },
-                ],
+    //properties are displayed in alphabetical order (a to z), case insensitive
+    const sortedProps = pageToShow
+        .filter((p) => p.type === 'property')
+        .sort((a, b) =>
+            a.key.localeCompare(b.key, undefined, {
+                sensitivity: 'base',
+                numeric: true,
             })
-        }
+        )
+
+    for (const p of sortedProps) {
+        propsObjArr.push({
+            tag: 'tr',
+            cls: propsWithMessages.includes(p.key)
+                ? 'pe__tcp_property-warning'
+                : undefined,
+            content: [
+                {
+                    tag: 'td',
+                    content: {
+                        tag: 'div',
+                        content: p.key,
+                    },
+                },
+                {
+                    tag: 'td',
+                    content: {
+                        tag: 'div',
+                        content: p.value,
+                    },
+                },
+            ],
+        })
     }
 
     const contentsTable = document.querySelector('.pe__tcp_body-tidy-table')
@@ -1060,6 +1125,45 @@ function displayPageProperties(pageName) {
     if (contentsTitleElement) {
         //attempt to make clean page reference
         contentsTitleElement.innerText = `Clipboard page: ${clearPageTitle}`
+    }
+
+    /* display messages (errors) banner on top of the details view
+    property level messages are prefixed with the property name */
+    const messagesBanner = document.querySelector('.pe__tcp_page_messages')
+
+    messagesBanner.innerHTML = ''
+
+    if (pageMessages.length > 0) {
+        const messagesListItems = []
+
+        for (const m of pageMessages) {
+            for (const messageText of m.messages) {
+                messagesListItems.push({
+                    tag: 'li',
+                    content: m.propertyKey
+                        ? `${m.propertyKey} : ${messageText}`
+                        : messageText,
+                })
+            }
+        }
+
+        messagesBanner.appendChild(
+            templateEngine([
+                {
+                    tag: 'div',
+                    cls: 'pe__tcp_page_messages_title',
+                    content:
+                        messagesListItems.length === 1
+                            ? 'There is 1 error'
+                            : `There are ${messagesListItems.length} errors`,
+                },
+                { tag: 'ul', content: messagesListItems },
+            ])
+        )
+
+        messagesBanner.classList.remove('pe__tcp_hidden')
+    } else {
+        messagesBanner.classList.add('pe__tcp_hidden')
     }
 }
 
@@ -1100,7 +1204,16 @@ function renderClipboardJSONMarkup(cObj, sURI) {
     function buildNodeJSONMarkup(clipboardObj, sumURI) {
         const markup = []
 
-        for (const p of clipboardObj.value) {
+        /* tree nodes are displayed in alphabetical order (a to z), case insensitive.
+        numeric option keeps list items in natural order: (2) before (10) */
+        const sortedValue = [...clipboardObj.value].sort((a, b) =>
+            a.key.localeCompare(b.key, undefined, {
+                sensitivity: 'base',
+                numeric: true,
+            })
+        )
+
+        for (const p of sortedValue) {
             if (p.type === 'page' || p.type === 'list') {
                 const thisURI = sumURI
                     ? sumURI + '.' + p.key
@@ -1376,7 +1489,135 @@ function contextPageToJSON() {
         value: collectPageAttributes(table),
     }
 
+    /* collect page messages (errors) from the messages of dialog section
+    each row holds a page/property reference and a list of messages
+    textContent is used because the message box is collapsed (not rendered) */
+    const messages = []
+
+    document
+        .querySelectorAll('table.tracerMessageBox td.tracerMessageReference')
+        .forEach((referenceTd) => {
+            const reference = referenceTd.textContent.trim()
+
+            const messageItems = []
+
+            referenceTd
+                .closest('tr')
+                ?.querySelectorAll('ol li')
+                .forEach((li) => {
+                    const messageText = li.textContent.trim()
+
+                    if (messageText) {
+                        messageItems.push(messageText)
+                    }
+                })
+
+            if (reference && messageItems.length > 0) {
+                messages.push({ reference: reference, messages: messageItems })
+            }
+        })
+
+    result.messages = messages
+
     return result
+}
+
+/* maps page messages references to tree node uris
+returns [{uri, propertyKey, messages: []}]
+propertyKey is filled when the reference points to a property of the page,
+uri always points to the page containing the message */
+function resolveMessageReferences(contextPageJSON) {
+    const resolved = []
+
+    if (!Array.isArray(contextPageJSON?.messages)) return resolved
+
+    for (const m of contextPageJSON.messages) {
+        let reference = m.reference
+
+        //reference may start with the root page name
+        if (reference === contextPageJSON.key) {
+            resolved.push({
+                uri: 'root',
+                propertyKey: null,
+                messages: m.messages,
+            })
+
+            continue
+        }
+
+        if (reference.startsWith(contextPageJSON.key + '.')) {
+            reference = reference.substring(contextPageJSON.key.length + 1)
+        }
+
+        const segments = reference.split('.')
+
+        let uri = 'root'
+        let pageValue = contextPageJSON.value
+        let propertyKey = null
+
+        for (let i = 0; i < segments.length; i++) {
+            const segment = segments[i]
+
+            const childPage = pageValue.find(
+                (e) =>
+                    e.key === segment &&
+                    (e.type === 'page' || e.type === 'list')
+            )
+
+            if (childPage) {
+                uri += `.${segment}`
+                pageValue = childPage.value
+
+                continue
+            }
+
+            //list items like Participants(1) live under the Participants list node
+            if (/\(.*\)$/.test(segment)) {
+                const listNode = pageValue.find(
+                    (e) =>
+                        e.type === 'list' &&
+                        e.key === segment.replace(/\(.*\)$/, '').trim()
+                )
+
+                const listItem = listNode?.value.find((e) => e.key === segment)
+
+                if (
+                    listItem &&
+                    (listItem.type === 'page' || listItem.type === 'list')
+                ) {
+                    uri += `.${listNode.key}.${segment}`
+                    pageValue = listItem.value
+
+                    continue
+                }
+
+                //scalar value list element is treated as a property of the list node
+                if (listItem && i === segments.length - 1) {
+                    uri += `.${listNode.key}`
+                    propertyKey = segment
+
+                    break
+                }
+            }
+
+            /* the last unresolved segment is treated as a property of the page,
+            an unresolved segment in the middle attaches the message
+            to the deepest resolved page */
+            if (i === segments.length - 1) {
+                propertyKey = segment
+            }
+
+            break
+        }
+
+        resolved.push({
+            uri: uri,
+            propertyKey: propertyKey,
+            messages: m.messages,
+        })
+    }
+
+    return resolved
 }
 
 //handles resizable bar click and move
