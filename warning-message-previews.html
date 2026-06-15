@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tidy view — warning message styles</title>
+<style>
+    :root {
+        --red-50: #fef2f2;
+        --red-100: #fee2e2;
+        --red-200: #fecaca;
+        --red-300: #fca5a5;
+        --red-400: #f87171;
+        --red-500: #ef4444;
+        --red-600: #dc2626;
+        --red-700: #b91c1c;
+        --red-800: #991b1b;
+        --red-900: #7f1d1d;
+    }
+
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        margin: 0;
+        padding: 32px;
+        background: #e9eaee;
+        font-family: 'Segoe UI', OpenSans, system-ui, -apple-system, sans-serif;
+        color: #10132e;
+    }
+
+    h1 {
+        font-size: 18px;
+        font-weight: 700;
+        margin: 0 0 4px;
+    }
+
+    .sub {
+        color: #5b5f72;
+        font-size: 13px;
+        margin: 0 0 28px;
+    }
+
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
+        gap: 20px;
+    }
+
+    /* the surface the banner sits on inside the real popup (white details panel) */
+    .card {
+        background: #fff;
+        border: 1px solid #e3e4ea;
+        border-radius: 10px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .card__label {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        padding: 10px 14px;
+        background: #f6f6f9;
+        border-bottom: 1px solid #ececf1;
+    }
+
+    .card__num {
+        font-weight: 700;
+        font-size: 13px;
+        color: #10132e;
+    }
+
+    .card__name {
+        font-size: 13px;
+        font-weight: 600;
+        color: #2b2e45;
+    }
+
+    .card__meta {
+        margin-left: auto;
+        font-size: 11px;
+        color: #8b8fa3;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    /* the popup detail area: title + the banner under it */
+    .stage {
+        padding: 16px;
+    }
+
+    .stage__title {
+        font-size: 15px;
+        font-weight: 700;
+        color: #10132e;
+        margin: 0 0 12px;
+    }
+
+    /* ===== shared inner structure of every banner =====
+       .pm        -> container
+       .pm-title  -> "There are 2 errors" row
+       .pm-list   -> <ul> of messages
+    */
+    .pm-list {
+        margin: 0;
+    }
+
+    .pm-list li {
+        line-height: 1.35;
+    }
+
+    /* ============================================================
+       1. Accent card — rounded, soft fill, left bar + icon
+       ============================================================ */
+    .v1 .pm {
+        background: var(--red-50);
+        border: 1px solid var(--red-200);
+        border-left: 3px solid var(--red-600);
+        border-radius: 8px;
+        padding: 9px 13px;
+        color: var(--red-800);
+        font-size: 13px;
+    }
+    .v1 .pm-title {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        font-weight: 700;
+        color: var(--red-700);
+    }
+    .v1 .pm-title::before {
+        content: '';
+        width: 15px;
+        height: 15px;
+        flex: none;
+        background: var(--red-600);
+        -webkit-mask: var(--ic-circle) center/contain no-repeat;
+        mask: var(--ic-circle) center/contain no-repeat;
+    }
+    .v1 .pm-list {
+        padding-left: 28px;
+        margin-top: 5px;
+    }
+    .v1 .pm-list li {
+        margin: 2px 0;
+    }
+    .v1 .pm-list li::marker {
+        color: var(--red-500);
+    }
+
+    /* ============================================================
+       2. Accent strip — square, full border, left bar
+       ============================================================ */
+    .v2 .pm {
+        background: var(--red-50);
+        border: 1px solid var(--red-200);
+        border-left: 3px solid var(--red-600);
+        padding: 9px 13px;
+        color: var(--red-800);
+        font-size: 13px;
+    }
+    .v2 .pm-title {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        font-weight: 700;
+        color: var(--red-700);
+    }
+    .v2 .pm-title::before {
+        content: '';
+        width: 15px;
+        height: 15px;
+        flex: none;
+        background: var(--red-600);
+        -webkit-mask: var(--ic-tri) center/contain no-repeat;
+        mask: var(--ic-tri) center/contain no-repeat;
+    }
+    .v2 .pm-list {
+        padding-left: 28px;
+        margin-top: 5px;
+    }
+    .v2 .pm-list li {
+        margin: 2px 0;
+    }
+    .v2 .pm-list li::marker {
+        color: var(--red-500);
+    }
+
+    /* ============================================================
+       3. Minimal flat — no border, no radius, tinted band
+       ============================================================ */
+    .v3 .pm {
+        background: var(--red-50);
+        border-right: 3px solid var(--red-600);
+        padding: 8px 12px;
+        color: var(--red-800);
+        font-size: 13px;
+    }
+    .v3 .pm-title {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-weight: 700;
+        color: var(--red-700);
+        font-size: 12px;
+    }
+    .v3 .pm-title::before {
+        content: '';
+        width: 13px;
+        height: 13px;
+        flex: none;
+        background: var(--red-600);
+        -webkit-mask: var(--ic-circle) center/contain no-repeat;
+        mask: var(--ic-circle) center/contain no-repeat;
+    }
+    .v3 .pm-list {
+        padding-left: 25px;
+        margin-top: 3px;
+        list-style: none;
+    }
+    .v3 .pm-list li {
+        position: relative;
+        margin: 1px 0;
+    }
+    .v3 .pm-list li::before {
+        content: '';
+        position: absolute;
+        left: -12px;
+        top: 0.6em;
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background: var(--red-400);
+    }
+
+    /* ============================================================
+       4. Outlined ghost — rounded, white bg, just an outline
+       ============================================================ */
+    .v4 .pm {
+        background: #fff;
+        border: 1px solid var(--red-300);
+        border-radius: 8px;
+        padding: 9px 13px;
+        color: #44464f;
+        font-size: 13px;
+    }
+    .v4 .pm-title {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        font-weight: 600;
+        color: var(--red-600);
+    }
+    .v4 .pm-title::before {
+        content: '';
+        width: 15px;
+        height: 15px;
+        flex: none;
+        background: var(--red-500);
+        -webkit-mask: var(--ic-circle) center/contain no-repeat;
+        mask: var(--ic-circle) center/contain no-repeat;
+    }
+    .v4 .pm-list {
+        padding-left: 28px;
+        margin-top: 5px;
+    }
+    .v4 .pm-list li {
+        margin: 2px 0;
+    }
+    .v4 .pm-list li::marker {
+        color: var(--red-300);
+    }
+
+    /* ============================================================
+       5. Two-tone header — rounded, solid red title strip
+       ============================================================ */
+    .v5 .pm {
+        border: 1px solid var(--red-200);
+        border-radius: 8px;
+        overflow: hidden;
+        font-size: 13px;
+    }
+    .v5 .pm-title {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        background: var(--red-600);
+        color: #fff;
+        font-weight: 700;
+        padding: 7px 13px;
+    }
+    .v5 .pm-title::before {
+        content: '';
+        width: 15px;
+        height: 15px;
+        flex: none;
+        background: #fff;
+        -webkit-mask: var(--ic-circle) center/contain no-repeat;
+        mask: var(--ic-circle) center/contain no-repeat;
+    }
+    .v5 .pm-list {
+        padding: 8px 13px 8px 30px;
+        margin: 0;
+        background: var(--red-50);
+        color: var(--red-800);
+    }
+    .v5 .pm-list li {
+        margin: 2px 0;
+    }
+    .v5 .pm-list li::marker {
+        color: var(--red-500);
+    }
+
+    /* ============================================================
+       6. Count pill — rounded, number as a chip
+       ============================================================ */
+    .v6 .pm {
+        background: var(--red-50);
+        border: 1px solid var(--red-200);
+        border-radius: 10px;
+        padding: 10px 13px;
+        color: var(--red-800);
+        font-size: 13px;
+    }
+    .v6 .pm-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 600;
+        color: var(--red-700);
+    }
+    .v6 .pm-title .pm-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 20px;
+        height: 20px;
+        padding: 0 6px;
+        border-radius: 999px;
+        background: var(--red-600);
+        color: #fff;
+        font-size: 12px;
+        font-weight: 700;
+    }
+    .v6 .pm-list {
+        padding-left: 28px;
+        margin-top: 7px;
+    }
+    .v6 .pm-list li {
+        margin: 3px 0;
+    }
+    .v6 .pm-list li::marker {
+        color: var(--red-400);
+    }
+
+    /* ============================================================
+       7. Left bar only — square, no fill, blends into panel
+       ============================================================ */
+    .v7 .pm {
+        border-left: 3px solid var(--red-600);
+        padding: 4px 0 4px 12px;
+        font-size: 13px;
+        color: #44464f;
+    }
+    .v7 .pm-title {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-weight: 700;
+        color: var(--red-700);
+    }
+    .v7 .pm-title::before {
+        content: '';
+        width: 14px;
+        height: 14px;
+        flex: none;
+        background: var(--red-600);
+        -webkit-mask: var(--ic-circle) center/contain no-repeat;
+        mask: var(--ic-circle) center/contain no-repeat;
+    }
+    .v7 .pm-list {
+        padding-left: 20px;
+        margin-top: 4px;
+    }
+    .v7 .pm-list li {
+        margin: 2px 0;
+    }
+    .v7 .pm-list li::marker {
+        color: var(--red-400);
+    }
+
+    /* ============================================================
+       8. Elevated toast — rounded, white, soft shadow, dot icon
+       ============================================================ */
+    .v8 .pm {
+        background: #fff;
+        border: 1px solid #f0d9d9;
+        border-radius: 10px;
+        padding: 10px 14px;
+        box-shadow:
+            0 1px 2px rgba(16, 19, 46, 0.06),
+            0 4px 12px rgba(220, 38, 38, 0.08);
+        font-size: 13px;
+        color: #44464f;
+    }
+    .v8 .pm-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 700;
+        color: var(--red-700);
+    }
+    .v8 .pm-title::before {
+        content: '';
+        width: 8px;
+        height: 8px;
+        flex: none;
+        border-radius: 50%;
+        background: var(--red-500);
+        box-shadow: 0 0 0 3px var(--red-100);
+    }
+    .v8 .pm-list {
+        padding-left: 24px;
+        margin-top: 6px;
+    }
+    .v8 .pm-list li {
+        margin: 2px 0;
+    }
+    .v8 .pm-list li::marker {
+        color: var(--red-300);
+    }
+
+    /* ============================================================
+       9. Dense one-liner feel — rounded, 12px, very tight
+       ============================================================ */
+    .v9 .pm {
+        background: #fff5f5;
+        border: 1px solid var(--red-200);
+        border-radius: 6px;
+        padding: 6px 10px;
+        font-size: 12px;
+        color: var(--red-900);
+    }
+    .v9 .pm-title {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-weight: 700;
+        color: var(--red-700);
+    }
+    .v9 .pm-title::before {
+        content: '';
+        width: 13px;
+        height: 13px;
+        flex: none;
+        background: var(--red-600);
+        -webkit-mask: var(--ic-circle) center/contain no-repeat;
+        mask: var(--ic-circle) center/contain no-repeat;
+    }
+    .v9 .pm-list {
+        padding-left: 24px;
+        margin-top: 2px;
+    }
+    .v9 .pm-list li {
+        margin: 0;
+        line-height: 1.3;
+    }
+    .v9 .pm-list li::marker {
+        color: var(--red-400);
+    }
+
+    /* ============================================================
+       10. Severity tag — square, uppercase ERROR chip, divider
+       ============================================================ */
+    .v10 .pm {
+        background: var(--red-50);
+        border: 1px solid var(--red-200);
+        padding: 9px 13px;
+        font-size: 13px;
+        color: var(--red-900);
+    }
+    .v10 .pm-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 600;
+        color: #44464f;
+        padding-bottom: 7px;
+        margin-bottom: 7px;
+        border-bottom: 1px solid var(--red-200);
+    }
+    .v10 .pm-title .pm-tag {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #fff;
+        background: var(--red-600);
+        padding: 2px 6px;
+        border-radius: 3px;
+    }
+    .v10 .pm-list {
+        padding-left: 18px;
+        margin: 0;
+    }
+    .v10 .pm-list li {
+        margin: 3px 0;
+        font-family: 'SF Mono', ui-monospace, 'Cascadia Code', Consolas, monospace;
+        font-size: 12px;
+    }
+    .v10 .pm-list li::marker {
+        color: var(--red-400);
+    }
+</style>
+</head>
+<body>
+    <h1>Tidy view — warning message styles</h1>
+    <p class="sub">
+        10 options on the real error text. Each renders on the white details
+        panel exactly where it appears in the popup. All are CSS-only on the
+        current markup (a title row + a <code>&lt;ul&gt;</code> of messages).
+    </p>
+
+    <div class="grid" id="grid"></div>
+
+    <script>
+        // icon masks (inline SVG data URIs, tinted via background-color)
+        const root = document.documentElement.style;
+        root.setProperty(
+            '--ic-circle',
+            "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-1 5h2v7h-2V7zm0 9h2v2h-2v-2z'/%3E%3C/svg%3E\")"
+        );
+        root.setProperty(
+            '--ic-tri',
+            "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2 1 21h22L12 2zm-1 6h2v7h-2V8zm0 9h2v2h-2v-2z'/%3E%3C/svg%3E\")"
+        );
+
+        const MESSAGES = [
+            '(ABR-FW-OpsFW-Work-Loan-MB-Business)NotEnoughDocumentError 1 Кредитный договор',
+            '(ABR-FW-OpsFW-Work-Loan-MB-Business)NotEnoughDocumentError 1 Заявление на добровольное страхование',
+        ];
+
+        const VARIANTS = [
+            { n: 1, name: 'Accent card', meta: 'rounded' },
+            { n: 2, name: 'Accent strip', meta: 'square' },
+            { n: 3, name: 'Minimal flat', meta: 'square · no border' },
+            { n: 4, name: 'Outlined ghost', meta: 'rounded' },
+            { n: 5, name: 'Two-tone header', meta: 'rounded' },
+            { n: 6, name: 'Count pill', meta: 'rounded' },
+            { n: 7, name: 'Left bar only', meta: 'square · no fill' },
+            { n: 8, name: 'Elevated toast', meta: 'rounded · shadow' },
+            { n: 9, name: 'Dense', meta: 'rounded · 12px' },
+            { n: 10, name: 'Severity tag', meta: 'square · mono' },
+        ];
+
+        const listHtml =
+            '<ul class="pm-list">' +
+            MESSAGES.map((m) => `<li>${m}</li>`).join('') +
+            '</ul>';
+
+        function titleHtml(v) {
+            if (v.n === 6)
+                return '<div class="pm-title"><span class="pm-count">2</span> errors</div>';
+            if (v.n === 10)
+                return '<div class="pm-title"><span class="pm-tag">Error</span> 2 issues on this page</div>';
+            return '<div class="pm-title">There are 2 errors</div>';
+        }
+
+        document.getElementById('grid').innerHTML = VARIANTS.map(
+            (v) => `
+            <div class="card">
+                <div class="card__label">
+                    <span class="card__num">${v.n}.</span>
+                    <span class="card__name">${v.name}</span>
+                    <span class="card__meta">${v.meta}</span>
+                </div>
+                <div class="stage v${v.n}">
+                    <div class="stage__title">Clipboard page: pyWorkPage</div>
+                    <div class="pm">
+                        ${titleHtml(v)}
+                        ${listHtml}
+                    </div>
+                </div>
+            </div>`
+        ).join('');
+    </script>
+</body>
+</html>

@@ -6,6 +6,15 @@ const clipboardFlatArr = []
 [{uri, propertyKey, messages: []}] */
 let clipboardMessagesArr = []
 
+/* progressive tree rendering: the first levels are rendered immediately and the
+deeper subtrees are built later in the background, so a huge clipboard page does
+not block the initial display */
+const TREE_INITIAL_DEPTH = 1 //levels under root built synchronously on first paint
+const TREE_DEFER_STEP = 2 //additional levels built per deferred subtree
+const TREE_DEFER_BUDGET_MS = 12 //time budget for a single background build chunk
+let deferredSubtrees = [] //[{node, uri, depth}] - pages whose subtree is not built yet
+let buildTreeSubtreeMarkup = null //(node, uri, depth, maxDepth) => ul markup; set during render
+
 /*local copy of settings. the idea here is to minimize updates 
 while keeping continuously requesting dimensions */
 let windowSizeSetting = {}
@@ -531,36 +540,8 @@ function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
         })
     )
 
-    //highlight tree nodes of pages that contain messages (errors)
-    for (const m of clipboardMessagesArr) {
-        const warningNode = tidyViewBody.querySelector(
-            `.pe__tcp_tree-node-wrapper[data-uri="${CSS.escape(m.uri)}"]`
-        )
-
-        if (!warningNode) continue
-
-        warningNode.classList.add('pe__tcp_tree-node-warning')
-
-        //expand collapsed parent pages so the warning node is visible
-        let parentUl = warningNode.closest('li')?.parentElement
-
-        while (parentUl?.matches('ul')) {
-            parentUl.classList.remove('pe__tcp_hidden')
-
-            const parentLi = parentUl.closest('li')
-
-            if (!parentLi) break
-
-            const expandBtn = parentLi.querySelector(
-                ':scope > .pe__tcp_tree-node-wrapper .pe__tcp_tree-node-btn-expand'
-            )
-
-            expandBtn?.classList.remove('pe__tcp_tree-node-btn-expand')
-            expandBtn?.classList.add('pe__tcp_tree-node-btn-collapse')
-
-            parentUl = parentLi.parentElement
-        }
-    }
+    //highlight tree nodes of the built levels that contain messages (errors)
+    highlightMessageNodes()
 
     //handles search results filtering options
     document
@@ -894,7 +875,13 @@ function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
                     '.pe__tcp_body-tidy-table tbody tr td[data-uri] div span:hover'
                 )
             ) {
-                const uriArr = target.closest('td')?.dataset.uri?.split('.')
+                const targetUri = target.closest('td')?.dataset.uri
+
+                /* the target page may live in a subtree that is still being built
+                in the background - build the path to it before navigating */
+                forceBuildPathToNode(targetUri)
+
+                const uriArr = targetUri?.split('.')
 
                 let pagesTreeNode = tidyViewBody.querySelector('.pe__tcp_tree')
 
@@ -1007,6 +994,10 @@ function renderMakrupFromJSON(contextPageJSON, thenFuArr) {
             }
         }
     }
+
+    /* build the remaining (deeper) tree levels in the background and re-apply
+    error highlighting once the whole tree is available */
+    processDeferredSubtrees(highlightMessageNodes)
 }
 
 //displays selected page properties
@@ -1201,7 +1192,11 @@ function renderClipboardJSONMarkup(cObj, sURI) {
         })
     }
 
-    function buildNodeJSONMarkup(clipboardObj, sumURI) {
+    /* builds the <ul> markup for a node's children, but only down to maxDepth.
+    pages/lists deeper than maxDepth are recorded in deferredSubtrees and their
+    markup is built later in the background, so the first levels can be displayed
+    immediately. the flat search representation is filled for the built levels. */
+    function buildNodeJSONMarkup(clipboardObj, sumURI, depth, maxDepth) {
         const markup = []
 
         /* tree nodes are displayed in alphabetical order (a to z), case insensitive.
@@ -1219,24 +1214,15 @@ function renderClipboardJSONMarkup(cObj, sURI) {
                     ? sumURI + '.' + p.key
                     : 'root' + '.' + p.key
 
-                const nestedPages = buildNodeJSONMarkup(p, thisURI)
-
-                let showExpandBtn = true
-
-                if (
+                const showExpandBtn =
                     Array.isArray(p.value) &&
-                    p.value.find((o) => o.type !== 'property') === undefined
-                ) {
-                    showExpandBtn = false
-                }
+                    p.value.some((o) => o.type !== 'property')
 
-                //fill in clipboard flat representation
+                //fill in clipboard flat representation for this page's properties
                 for (const v of p.value) {
                     if (v.type === 'property') {
-                        const uri = thisURI ?? 'root'
-
                         pushObjectToFlatArr({
-                            uri: uri,
+                            uri: thisURI,
                             key: v.key,
                             value: v.value,
                         })
@@ -1270,7 +1256,7 @@ function renderClipboardJSONMarkup(cObj, sURI) {
                     },
                 ]
 
-                markup.push({
+                const liNode = {
                     tag: 'li',
                     content: [
                         {
@@ -1282,29 +1268,51 @@ function renderClipboardJSONMarkup(cObj, sURI) {
                             },
                         },
                     ],
+                }
+
+                markup.push(liNode)
+
+                if (showExpandBtn) {
+                    if (depth < maxDepth) {
+                        const nestedPages = buildNodeJSONMarkup(
+                            p,
+                            thisURI,
+                            depth + 1,
+                            maxDepth
+                        )
+
+                        if (nestedPages.content.length !== 0) {
+                            nestedPages.cls = 'pe__tcp_hidden'
+                            liNode.content.push(nestedPages)
+                        }
+                    } else {
+                        /* defer building this subtree so the visible levels render
+                        now. it is appended to this li later, in the background */
+                        deferredSubtrees.push({
+                            node: p,
+                            uri: thisURI,
+                            depth: depth + 1,
+                        })
+                    }
+                }
+            } else if (p.type === 'property' && sumURI === undefined) {
+                /* root level properties. nested properties are pushed above by
+                their containing page, so this only handles the context page root */
+                pushObjectToFlatArr({
+                    uri: 'root',
+                    key: p.key,
+                    value: p.value,
                 })
-
-                if (nestedPages.content?.length !== 0) {
-                    nestedPages.cls = 'pe__tcp_hidden'
-                    markup[markup.length - 1].content.push(nestedPages)
-                }
-            } else {
-                if (p.type === 'property') {
-                    const uri = sumURI ?? 'root'
-                    //fill in clipboard flat representation
-
-                    pushObjectToFlatArr({
-                        uri: uri,
-                        key: p.key,
-                        value: p.value,
-                    })
-                }
             }
         }
 
         //all contents wrapped in Context page
         return { tag: 'ul', content: markup }
     }
+
+    //reset deferred queue and expose the builder for background/lazy building
+    deferredSubtrees = []
+    buildTreeSubtreeMarkup = buildNodeJSONMarkup
 
     return {
         tag: 'ul',
@@ -1332,10 +1340,148 @@ function renderClipboardJSONMarkup(cObj, sURI) {
                             },
                         ],
                     },
-                    buildNodeJSONMarkup(cObj, sURI),
+                    buildNodeJSONMarkup(cObj, sURI, 0, TREE_INITIAL_DEPTH),
                 ],
             },
         ],
+    }
+}
+
+/* builds one deferred subtree's markup and attaches it under its tree node.
+returns true if a subtree was built and attached */
+function buildAndAttachDeferredSubtree(entry) {
+    if (!entry || !buildTreeSubtreeMarkup) return false
+
+    const tidyViewBody = document.querySelector('.pe__tcp_body-tidy')
+    if (!tidyViewBody) return false
+
+    const wrapper = tidyViewBody.querySelector(
+        `.pe__tcp_tree-node-wrapper[data-uri="${CSS.escape(entry.uri)}"]`
+    )
+
+    const li = wrapper?.closest('li')
+
+    //node not in the tree (yet), or already built
+    if (!li || li.querySelector(':scope > ul')) return false
+
+    const subtreeMarkup = buildTreeSubtreeMarkup(
+        entry.node,
+        entry.uri,
+        entry.depth,
+        entry.depth + TREE_DEFER_STEP
+    )
+
+    if (subtreeMarkup.content.length === 0) return false
+
+    const ul = templateEngine(subtreeMarkup)
+
+    /* keep the subtree collapsed unless the user already expanded this node
+    while it was still loading */
+    const expandBtn = wrapper.querySelector(
+        '.pe__tcp_tree-node-btn-expand, .pe__tcp_tree-node-btn-collapse'
+    )
+
+    const isExpanded = expandBtn?.classList.contains(
+        'pe__tcp_tree-node-btn-collapse'
+    )
+
+    if (!isExpanded) {
+        ul.classList.add('pe__tcp_hidden')
+    }
+
+    li.appendChild(ul)
+
+    return true
+}
+
+/* builds the deferred subtrees in time-budgeted background chunks so the first
+levels of the tree stay responsive while the rest is filled in. calls onComplete
+once every subtree is built */
+function processDeferredSubtrees(onComplete) {
+    const scheduleNext =
+        typeof requestIdleCallback === 'function'
+            ? (cb) => requestIdleCallback(cb)
+            : (cb) => setTimeout(cb, 0)
+
+    const step = () => {
+        const start = performance.now()
+
+        while (
+            deferredSubtrees.length > 0 &&
+            performance.now() - start < TREE_DEFER_BUDGET_MS
+        ) {
+            buildAndAttachDeferredSubtree(deferredSubtrees.shift())
+        }
+
+        if (deferredSubtrees.length > 0) {
+            scheduleNext(step)
+        } else if (typeof onComplete === 'function') {
+            onComplete()
+        }
+    }
+
+    scheduleNext(step)
+}
+
+/* synchronously builds every not-yet-rendered page on the path to targetUri so
+the tree node exists before navigation (used by search result navigation) */
+function forceBuildPathToNode(targetUri) {
+    if (!targetUri) return
+
+    let guard = 0
+
+    while (guard++ < 10000) {
+        const index = deferredSubtrees.findIndex(
+            (d) => targetUri === d.uri || targetUri.startsWith(d.uri + '.')
+        )
+
+        if (index === -1) break
+
+        const [entry] = deferredSubtrees.splice(index, 1)
+        buildAndAttachDeferredSubtree(entry)
+    }
+}
+
+/* highlights tree nodes of pages that contain messages (errors) and expands
+their collapsed ancestors so the warnings are visible. safe to call repeatedly -
+deep nodes that were not built yet get highlighted once they appear */
+function highlightMessageNodes() {
+    const tidyViewBody = document.querySelector('.pe__tcp_body-tidy')
+    if (!tidyViewBody) return
+
+    for (const m of clipboardMessagesArr) {
+        const warningNode = tidyViewBody.querySelector(
+            `.pe__tcp_tree-node-wrapper[data-uri="${CSS.escape(m.uri)}"]`
+        )
+
+        if (
+            !warningNode ||
+            warningNode.classList.contains('pe__tcp_tree-node-warning')
+        ) {
+            continue
+        }
+
+        warningNode.classList.add('pe__tcp_tree-node-warning')
+
+        //expand collapsed parent pages so the warning node is visible
+        let parentUl = warningNode.closest('li')?.parentElement
+
+        while (parentUl?.matches('ul')) {
+            parentUl.classList.remove('pe__tcp_hidden')
+
+            const parentLi = parentUl.closest('li')
+
+            if (!parentLi) break
+
+            const expandBtn = parentLi.querySelector(
+                ':scope > .pe__tcp_tree-node-wrapper .pe__tcp_tree-node-btn-expand'
+            )
+
+            expandBtn?.classList.remove('pe__tcp_tree-node-btn-expand')
+            expandBtn?.classList.add('pe__tcp_tree-node-btn-collapse')
+
+            parentUl = parentLi.parentElement
+        }
     }
 }
 

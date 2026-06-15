@@ -502,34 +502,32 @@
     font-weight: 700;
 }
 
-/* page messages (errors) banner on top of the details view */
+/* page messages (errors) banner on top of the details view
+minimal flat band with a red accent bar on the right side */
 .pe__tcp_page_messages {
     background-color: #fef2f2;
-    border: 1px solid #fecaca;
-    border-left: 4px solid #dc2626;
-    border-radius: 6px;
+    border-right: 3px solid #dc2626;
     color: #991b1b;
     margin: var(--main-margin) var(--main-margin) 0 var(--main-margin);
     padding: 8px 12px;
     box-sizing: border-box;
     min-width: fit-content;
-    box-shadow: 0 1px 3px rgba(16, 19, 46, 0.08);
     font-size: 13px;
 }
 
 .pe__tcp_page_messages_title {
     display: flex;
     align-items: center;
-    gap: 0.4em;
-    font-size: 13px;
+    gap: 6px;
+    font-size: 12px;
     font-weight: 700;
     color: #b91c1c;
 }
 
 .pe__tcp_page_messages_title::before {
     content: '';
-    width: 1.05em;
-    height: 1.05em;
+    width: 13px;
+    height: 13px;
     flex-shrink: 0;
     background-color: #dc2626;
     -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-1 5h2v7h-2V7zm0 9h2v2h-2v-2z'/%3E%3C/svg%3E")
@@ -539,17 +537,26 @@
 }
 
 .pe__tcp_page_messages ul {
-    margin: 0.3em 0 0 0;
-    padding-inline-start: 1.7em;
+    margin: 3px 0 0 0;
+    padding-inline-start: 25px;
+    list-style: none;
 }
 
 .pe__tcp_page_messages li {
-    margin: 0.1em 0;
-    line-height: 1.3;
+    position: relative;
+    margin: 1px 0;
+    line-height: 1.35;
 }
 
-.pe__tcp_page_messages li::marker {
-    color: #dc2626;
+.pe__tcp_page_messages li::before {
+    content: '';
+    position: absolute;
+    left: -12px;
+    top: 0.6em;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background-color: #f87171;
 }
 
 .pe__tcp_change-view {
