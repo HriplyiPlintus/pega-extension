@@ -326,6 +326,9 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
             (cfg) => tab.title.includes(cfg.titleMatch) && (!cfg.requireComplete || isComplete)
         )
 
+        //diagnostic: shows the actual tab title and which config (if any) matched
+        console.log('[pega-ext] evaluating tab', tabId, '| status=', changeInfo.status, '| title=', JSON.stringify(tab.title), '| matched=', matched ? matched.titleMatch : 'NONE')
+
         if (matched) {
             injectJavascript(tabId, matched.scripts)
             if (matched.css) injectCSS(tabId)
@@ -355,6 +358,7 @@ function injectJavascript(tabId, jsFilesArr, callback) {
             files: [...jsFilesArr],
         })
         .then(() => {
+            console.log('[pega-ext] injected', jsFilesArr)
             if (callback) {
                 callback()
             }
@@ -492,7 +496,10 @@ function updateExtensionSetting(key, value) {
         const extSettings = result.settings ?? {}
         extSettings[key] = value
 
-        chrome.storage.sync.set({ settings: extSettings })
+        //catch so a storage.sync write-quota rejection never goes unhandled
+        chrome.storage.sync
+            .set({ settings: extSettings })
+            .catch((err) => console.warn('settings write failed', err))
 
         chrome.runtime.sendMessage({
             type: 'settingsUpdated',
