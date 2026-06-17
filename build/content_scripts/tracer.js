@@ -40,7 +40,7 @@ future) rows. Hidden state persists like the widths do. */
 
     /* diagnostics: flip to false to silence. logs are tagged so you can filter
     this (top) frame's console by "pega-ext tracer" */
-    const DEBUG = true
+    const DEBUG = false
     const log = (...a) => DEBUG && console.log('[pega-ext tracer]', ...a)
 
     const MIN_COL = 24 //minimum width of a whole column (sum of its tracks), px
