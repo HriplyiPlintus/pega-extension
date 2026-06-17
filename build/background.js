@@ -410,10 +410,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         also update settings local copy */
         getProcessedTabs().then((tabs) => {
             for (const t of tabs) {
-                chrome.tabs.sendMessage(t, {
-                    type: 'settingsUpdated',
-                    sender: 'pega-extension',
-                })
+                chrome.tabs
+                    .sendMessage(t, {
+                        type: 'settingsUpdated',
+                        sender: 'pega-extension',
+                    })
+                    .catch(() => {}) //tab may have no content-script listener
 
                 console.log('message sent', {
                     type: 'settingsUpdated',
@@ -485,6 +487,11 @@ function getExtensionSettings() {
     return extensionSettingsCached
 }
 
+/* serializes settings writes so two near-simultaneous saves (e.g. tracer column
+ * widths + hidden columns, which are separate keys on the one `settings` object)
+ * can't both read the same baseline and clobber each other's update */
+let settingsWriteChain = Promise.resolve()
+
 /* set extension settings. some settings saved from content scripts
  */
 function updateExtensionSetting(key, value) {
@@ -492,20 +499,23 @@ function updateExtensionSetting(key, value) {
         console.warn('key cannot be empty')
     }
 
-    chrome.storage.sync.get('settings').then((result) => {
-        const extSettings = result.settings ?? {}
-        extSettings[key] = value
-
-        //catch so a storage.sync write-quota rejection never goes unhandled
-        chrome.storage.sync
-            .set({ settings: extSettings })
-            .catch((err) => console.warn('settings write failed', err))
-
-        chrome.runtime.sendMessage({
-            type: 'settingsUpdated',
-            sender: 'pega-extension',
+    //run each read-modify-write to completion before the next one starts
+    settingsWriteChain = settingsWriteChain
+        .catch(() => {}) //a prior failure must not break the chain
+        .then(() => chrome.storage.sync.get('settings'))
+        .then((result) => {
+            const extSettings = result.settings ?? {}
+            extSettings[key] = value
+            return chrome.storage.sync.set({ settings: extSettings })
         })
-    })
+        .then(() =>
+            //broadcast that settings changed; no receiver (e.g. popup closed) is
+            //fine - swallow the "Receiving end does not exist" rejection
+            chrome.runtime
+                .sendMessage({ type: 'settingsUpdated', sender: 'pega-extension' })
+                .catch(() => {})
+        )
+        .catch((err) => console.warn('settings write failed', err))
 }
 
 //sync between browser should trigger settings refresh. not tested at all
