@@ -1,3 +1,13 @@
+/* each "?" in the SQL is substituted with a unique sentinel token (kept as a SQL
+string literal, so the formatter preserves it verbatim and in order). that lets us
+map every inserted value to its EXACT spot in the beautified SQL - even when the
+same value is inserted more than once - instead of bolding every textual match.
+declared above the run trigger so the immediate-run path doesn't hit their TDZ. */
+const PE_SQL_TOKEN_RE = /'PEZZ_INSERT_(\d+)_ZZEP'/g
+const peSqlToken = (i) => `'PEZZ_INSERT_${i}_ZZEP'`
+const peEscapeHtml = (s) =>
+    String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
 //trace event's popup
 if (document.readyState !== 'loading') {
     addSqlWithInserts()
@@ -12,6 +22,7 @@ function enrichSqlWithInserts(rows) {
     let sqlInserts = ''
 
     let insertsRow = undefined
+    let insertsValueEl = undefined
 
     for (const r of rows) {
         //row label
@@ -35,6 +46,7 @@ function enrichSqlWithInserts(rows) {
         //get inserts
         if (eventType === 'SQL Inserts') {
             sqlInserts = eventTypeValue
+            insertsValueEl = eventTypeValueElement
             const eventTypeXMPElement =
                 eventTypeValueElement.querySelector('xmp')
             if (eventTypeXMPElement) {
@@ -53,17 +65,64 @@ function enrichSqlWithInserts(rows) {
 
         let insertsArr = sqlInserts.split('> <') //pure inserts array
 
-        let startSearchIndex,
-            insertsIndex = 0
+        //substitute each "?" with a sentinel token (not the value itself) so we can
+        //later find each insert's exact location in the formatted output
+        let markedQuery = sqlQuery
+        let insertsIndex = 0
         while (
-            sqlQuery.includes('?', startSearchIndex) &&
+            markedQuery.includes('?') &&
             insertsIndex < insertsArr.length
         ) {
-            sqlQuery = sqlQuery.replace(/\?/, `'${insertsArr[insertsIndex]}'`)
+            markedQuery = markedQuery.replace('?', peSqlToken(insertsIndex))
             insertsIndex++
         }
 
-        return { query: sqlQuery, insertsRow: insertsRow }
+        return { markedQuery, insertsArr, insertsRow, insertsValueEl }
+    }
+
+    return {}
+}
+
+/* rebuild the "SQL Inserts" cell so each value is its own hoverable element, and
+wire it to bold the matching value in the beautified SQL. the match is by token
+INDEX, so hovering one of two identical values highlights only its own occurrence. */
+function wireInsertsHighlight(insertsValueEl, insertsArr, sqlEl) {
+    if (!insertsValueEl) {
+        return
+    }
+
+    const container = document.createElement('span')
+    container.classList.add('pe__sql-inserts-src')
+
+    insertsArr.forEach((value, i) => {
+        if (i > 0) {
+            container.appendChild(document.createTextNode(' '))
+        }
+
+        const srcSpan = document.createElement('span')
+        srcSpan.classList.add('pe__sql-insert-src')
+        srcSpan.dataset.peInsert = String(i)
+        srcSpan.textContent = `<${value}>` //textContent escapes the angle brackets
+
+        //the exact (single) occurrence this insert produced in the beautified SQL
+        const targets = sqlEl.querySelectorAll(
+            `.pe__sql-insert[data-pe-insert="${i}"]`
+        )
+        srcSpan.addEventListener('mouseenter', () => {
+            targets.forEach((t) => t.classList.add('pe__sql-insert--hl'))
+        })
+        srcSpan.addEventListener('mouseleave', () => {
+            targets.forEach((t) => t.classList.remove('pe__sql-insert--hl'))
+        })
+
+        container.appendChild(srcSpan)
+    })
+
+    const xmp = insertsValueEl.querySelector('xmp')
+    if (xmp) {
+        xmp.replaceWith(container)
+    } else {
+        insertsValueEl.replaceChildren(container)
     }
 }
 
@@ -79,9 +138,10 @@ function addSqlWithInserts() {
             ?.innerText.trim()
 
         if (eventType === 'Event Type' && eventTypeValue === 'DB Query') {
-            const { query, insertsRow } = enrichSqlWithInserts(rows)
+            const { markedQuery, insertsArr, insertsRow, insertsValueEl } =
+                enrichSqlWithInserts(rows)
 
-            if (query && insertsRow) {
+            if (markedQuery && insertsRow) {
                 const copyIcon = document.createElement('img')
                 copyIcon.setAttribute(
                     'src',
@@ -195,23 +255,48 @@ function addSqlWithInserts() {
                         }, 1500)
                     }
                 })
-                /* 
-                TODO: add white-space: pre-wrap для SQL inserts и для самой квери. 
-                саму кверю нужно будет брать после преобразования
-                посмотреть на строке sqlFormatterGlobalObj.sqlFormatter.format
-                */
-                let modifiedQuery = sqlFormatterGlobalObj.sqlFormatter
-                    .format(query)
-                    .replaceAll(' ', '&nbsp;')
 
-                enrichedSqlRowData.innerHTML = modifiedQuery //sqlFormatterGlobalObj.sqlFormatter.format(query)
+                //format the TOKEN-marked query once, then derive both the real
+                //(de-tokenized) SQL for copy and the highlightable HTML for display
+                let formattedMarked
+                try {
+                    formattedMarked = sqlFormatterGlobalObj.sqlFormatter.format(
+                        markedQuery
+                    )
+                } catch (error) {
+                    formattedMarked = markedQuery
+                }
+
+                const realFormatted = formattedMarked.replace(
+                    PE_SQL_TOKEN_RE,
+                    (m, idx) => `'${insertsArr[Number(idx)]}'`
+                )
+
+                //escape + preserve spacing first (tokens carry no spaces/markup, so
+                //they survive intact), THEN swap each token for a highlightable span
+                let displayHtml = peEscapeHtml(formattedMarked).replaceAll(
+                    ' ',
+                    '&nbsp;'
+                )
+                displayHtml = displayHtml.replace(PE_SQL_TOKEN_RE, (m, idx) => {
+                    const i = Number(idx)
+                    const valueHtml = peEscapeHtml(
+                        `'${insertsArr[i]}'`
+                    ).replaceAll(' ', '&nbsp;')
+                    return `<span class="pe__sql-insert" data-pe-insert="${i}">${valueHtml}</span>`
+                })
+
+                enrichedSqlRowData.innerHTML = displayHtml
                 enrichedSqlRowData.appendChild(actionIconsWrapper) //added action icons
-                enrichedSqlRowData.dataset.query = query
+                enrichedSqlRowData.dataset.query = realFormatted
 
                 enrichedSqlRowData.classList.add(
                     'pega-extension__tracer-event-sql-formatted'
                 )
                 enrichedSqlRowData.style.height = '5em'
+
+                //make each SQL Insert value hoverable -> bolds its exact match above
+                wireInsertsHighlight(insertsValueEl, insertsArr, enrichedSqlRowData)
 
                 //row itself
                 const enrichedSqlRow = document.createElement('tr')

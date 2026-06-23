@@ -148,6 +148,27 @@
     position: relative;
 }
 
+/* hovering a SQL Insert value bolds its exact occurrence in the beautified SQL */
+.pe__sql-inserts-src {
+    white-space: pre-wrap;
+}
+
+.pe__sql-insert-src {
+    cursor: pointer;
+    border-radius: 2px;
+}
+
+.pe__sql-insert-src:hover {
+    font-weight: 700;
+    background: #fff2a8;
+}
+
+.pe__sql-insert--hl {
+    font-weight: 700;
+    background: #fff2a8;
+    border-radius: 2px;
+}
+
 .pega-extension__tracer-event-sql-icons-wrapper {
     display: flex;
     flex-direction: row;
