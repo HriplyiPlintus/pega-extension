@@ -54,9 +54,23 @@ future) rows. Hidden state persists like the widths do. */
     const HIDDEN_KEY = 'tracer-hiddenCols' //column-visibility state (colKey -> true)
     const STYLE_ID = 'pe__tracer-resize-style'
     const HIDE_STYLE_ID = 'pe__tracer-hide-style'
+    const POPUP_STYLE_ID = 'pe__tracer-popup-style'
     const TOOLBAR_STYLE_ID = 'pe__tracer-toolbar-style'
     const BTN_ID = 'pe__tracer-cols-btn'
     const POPUP_ID = 'pe__tracer-cols-popup'
+
+    /* per-column DEFAULT widths (keyed by lower-cased header title). these columns
+    are "pinned": they keep this exact width and are NOT scaled by the fill, while
+    the remaining columns flex to absorb the slack so the table still fills the frame.
+    {chars} is sized to ~N characters of the column font; {px} is a literal width. */
+    const DEFAULT_COL_WIDTHS = {
+        line: { chars: 5 },
+        status: { chars: 7 },
+        'event type': { px: 150 },
+        elapsed: { chars: 10 },
+    }
+    const defaultSpec = (key) =>
+        DEFAULT_COL_WIDTHS[String(key || '').trim().toLowerCase()]
     //declared up here (not by its use site) so it is initialized before the
     //synchronous bootstrap below can reach setupToolbar() - avoids a TDZ error
     //icon #8: two solid bars + one dashed - reads as "show / hide columns"
@@ -363,6 +377,7 @@ future) rows. Hidden state persists like the widths do. */
         bodyTables().forEach(buildColgroup)
         injectStyle() //neutralize max-width caps etc. once widths are locked in
         addHandles(row)
+        setupStickyHeader() //pin the header row to the top while the body scrolls
         validated = false
         log(
             'built:',
@@ -485,6 +500,51 @@ future) rows. Hidden state persists like the widths do. */
         return widths
     }
 
+    //the pinned default width for a column, in px (null if it has no default)
+    function defaultWidthFor(c) {
+        const spec = defaultSpec(c.key)
+        if (!spec) return null
+        if (typeof spec.px === 'number') return spec.px
+        if (typeof spec.chars === 'number') return charsToPx(spec.chars)
+        return null
+    }
+
+    //width of N characters in the header's font, plus the cell's horizontal padding
+    //(measured live so it tracks the real font/zoom). falls back to an estimate.
+    function charsToPx(n) {
+        const count = Math.max(1, n)
+        let perChar = 6.5
+        let padX = 6
+        const row = getHeaderRow()
+        const ref =
+            row &&
+            [...row.cells].find((td) =>
+                td.classList.contains('eventTitleBarStyle')
+            )
+        const view = D && D.defaultView
+        const host = D && (D.body || D.documentElement)
+        if (ref && view && host) {
+            const cs = view.getComputedStyle(ref)
+            const probe = D.createElement('span')
+            probe.style.cssText =
+                'position:absolute;left:-9999px;top:0;visibility:hidden;white-space:pre;'
+            probe.style.fontFamily = cs.fontFamily
+            probe.style.fontSize = cs.fontSize
+            probe.style.fontWeight = cs.fontWeight
+            probe.style.fontStyle = cs.fontStyle
+            probe.style.letterSpacing = cs.letterSpacing
+            probe.textContent = '0'.repeat(count)
+            host.appendChild(probe)
+            const w = probe.getBoundingClientRect().width
+            probe.remove()
+            if (w > 0) perChar = w / count
+            padX =
+                (parseFloat(cs.paddingLeft) || 0) +
+                (parseFloat(cs.paddingRight) || 0)
+        }
+        return Math.max(MIN_COL, Math.round(perChar * count + padX + 4))
+    }
+
     //resolve a header cell's current width to concrete px (handles %, max-width)
     function measureCellPx(td) {
         const w = td.style.width
@@ -495,7 +555,9 @@ future) rows. Hidden state persists like the widths do. */
         return clampWidth(td.getBoundingClientRect().width)
     }
 
-    //apply the seed (or persisted) width to every resizable track's CSS var
+    //apply the seed (or persisted) width to every resizable track's CSS var. a
+    //column with a configured default and no saved width seeds to that default;
+    //otherwise it seeds to the body's natural width.
     function seedVars() {
         for (const c of cols) {
             if (!c.resizable) continue
@@ -505,8 +567,15 @@ future) rows. Hidden state persists like the widths do. */
                 Array.isArray(saved) &&
                 saved.length === myTracks.length &&
                 saved.every((v) => v > 0)
+            //defaults only apply to single-track columns (all configured ones are)
+            const def =
+                !usable && myTracks.length === 1 ? defaultWidthFor(c) : null
             myTracks.forEach((t, p) => {
-                const px = clampTrack(usable ? saved[p] : t.px)
+                let px
+                if (usable) px = saved[p]
+                else if (def != null) px = def
+                else px = t.px
+                px = clampTrack(px)
                 t.px = px
                 D.documentElement.style.setProperty(t.cssVar, px + 'px')
             })
@@ -664,29 +733,44 @@ future) rows. Hidden state persists like the widths do. */
     }
 
     /* apply the current hidden/shown state and FIT the visible columns to the frame.
-    every table is pinned to the frame width and the visible resizable columns are
-    scaled proportionally so they sum to that width. a hidden column's track var is
-    set to 0 (it stays in the grid, just collapsed), so its space is handed to the
-    rest with no trailing gap. a fit-to-width drag trades width with a neighbor so
-    the total never changes (no horizontal scrollbar). proportions are preserved
-    across hide/show and window-resize, so the user's manual sizing survives. */
+    columns with a configured default width are PINNED (kept at their exact width);
+    the remaining "flex" columns are scaled proportionally to absorb the leftover
+    width, so the table still fills the frame with no trailing gap. a hidden column's
+    track var is set to 0 (it stays in the grid, just collapsed). a fit-to-width drag
+    trades width with a neighbor so the total never changes (no horizontal scrollbar).
+    flex proportions are preserved across hide/show and window-resize. */
     function applyVisibility() {
         if (!D || !cols.length) return
         const row = getHeaderRow()
 
-        //scale factor that makes the visible resizable columns fill the frame
+        /* partition visible tracks: spacer (fixed) + pinned defaults + flex.
+        normally the flex columns alone soak up the slack and the pinned columns
+        keep their exact width. but if the flex columns can't do it - none are
+        visible, or the window is so narrow the pinned columns already overflow -
+        we fall back to scaling EVERY resizable column (pinned included) to fit
+        avail, so the table always fills with no gap and never overflows. */
         const avail = availableWidth()
-        let fixedSum = 0 //visible non-resizable tracks (the leading spacer)
-        let resizableSum = 0 //visible resizable tracks
+        let spacerSum = 0 //the leading non-resizable spacer track(s)
+        let pinnedSum = 0 //visible default-width (pinned) resizable tracks
+        let flexSum = 0 //visible flexible resizable tracks
+        let flexCount = 0
         for (const t of tracks) {
             if (t.colKey && hiddenByKey[t.colKey]) continue
-            if (t.resizable) resizableSum += t.px
-            else fixedSum += t.px
+            if (!t.resizable) spacerSum += t.px
+            else if (defaultSpec(t.colKey)) pinnedSum += t.px
+            else {
+                flexSum += t.px
+                flexCount++
+            }
         }
-        const targetResizable = avail - fixedSum
-        const factor =
-            avail > 0 && resizableSum > 0 && targetResizable > 0
-                ? targetResizable / resizableSum
+        const targetResizable = avail - spacerSum
+        const targetFlex = targetResizable - pinnedSum
+        //flex can fill only if it has room to without collapsing below MIN_TRACK
+        const flexCanFill = flexSum > 0 && targetFlex >= flexCount * MIN_TRACK
+        const flexScale = flexSum > 0 ? targetFlex / flexSum : 1
+        const uniformScale =
+            targetResizable > 0 && pinnedSum + flexSum > 0
+                ? targetResizable / (pinnedSum + flexSum)
                 : 1
 
         //which visible column is rightmost - its handle moves to the left edge
@@ -696,6 +780,7 @@ future) rows. Hidden state persists like the widths do. */
         for (const c of cols) {
             if (!c.resizable) continue
             const hidden = !!hiddenByKey[c.key]
+            const pinned = !!defaultSpec(c.key)
             const hcell = row && row.cells[c.cellIndex]
             if (hcell) {
                 //never display:none our own cells (it shifts the grid); the var-0
@@ -711,25 +796,58 @@ future) rows. Hidden state persists like the widths do. */
                 handle.classList.toggle('pe__left', c.key === lastKey)
             }
 
+            const myTracks = []
             for (const t of tracks) {
                 if (t.colKey !== c.key) continue
+                myTracks.push(t)
                 if (hidden) {
                     //keep t.px as the last real width so a later un-hide restores it
                     D.documentElement.style.setProperty(t.cssVar, '0px')
                 } else {
-                    //write the scaled width back so a drag starts from what's shown
-                    const w = Math.max(MIN_TRACK, Math.round(t.px * factor))
+                    //normal: pinned exact, flex scaled. fallback: scale everything.
+                    const scaled = flexCanFill
+                        ? pinned
+                            ? t.px
+                            : t.px * flexScale
+                        : t.px * uniformScale
+                    const w = Math.max(MIN_TRACK, Math.round(scaled))
                     t.px = w
                     D.documentElement.style.setProperty(t.cssVar, w + 'px')
                 }
             }
-            if (!hidden) {
-                widthsByKey[c.key] = tracks
-                    .filter((t) => t.colKey === c.key)
-                    .map((t) => t.px)
+            //only persist real per-track widths; the early header-only pass runs
+            //before tracks exist and must NOT clobber loaded widths with []
+            if (!hidden && myTracks.length) {
+                widthsByKey[c.key] = myTracks.map((t) => t.px)
             }
         }
         pinTableWidths(avail)
+    }
+
+    /* pin the header table to the top of the scroll so the column titles stay put
+    while the event rows scroll under them. the header is its own table (the body
+    rows live in a separate container), so position:sticky on it is enough. an opaque
+    background keeps scrolled rows from showing through the spacer cell / cell gaps. */
+    function setupStickyHeader() {
+        if (!HEADER) return
+        HEADER.style.position = 'sticky'
+        HEADER.style.top = '0px'
+        HEADER.style.zIndex = '6'
+
+        const row = getHeaderRow()
+        const ref =
+            row &&
+            [...row.cells].find((td) =>
+                td.classList.contains('eventTitleBarStyle')
+            )
+        let bg = ''
+        if (ref && D.defaultView) {
+            bg = D.defaultView.getComputedStyle(ref).backgroundColor
+        }
+        if (!bg || bg === 'transparent' || bg === 'rgba(0, 0, 0, 0)') {
+            bg = '#ffffff'
+        }
+        HEADER.style.backgroundColor = bg
     }
 
     //pin every table box to the frame width so fixed-layout fills it exactly: the
@@ -851,6 +969,10 @@ future) rows. Hidden state persists like the widths do. */
         }
         const draft = Object.assign({}, hiddenByKey)
 
+        //the popup can open before the table builds (fresh window, no rows yet), so
+        //ensure its styles exist now rather than relying on injectStyle()/rebuildAll
+        injectPopupStyle()
+
         const pop = D.createElement('div')
         pop.id = POPUP_ID
         pop.className = 'pe__tracer-cols-popup'
@@ -942,6 +1064,8 @@ future) rows. Hidden state persists like the widths do. */
         if (D) {
             const hs = D.getElementById(HIDE_STYLE_ID)
             if (hs) hs.remove()
+            const ps = D.getElementById(POPUP_STYLE_ID)
+            if (ps) ps.remove()
         }
     }
 
@@ -1018,6 +1142,9 @@ future) rows. Hidden state persists like the widths do. */
                 t.style.tableLayout = t.dataset.pePrevLayout
                 delete t.dataset.pePrevLayout
             }
+            //pinTableWidths set a hard pixel width; clear it so the native
+            //auto/percent-width layout is restored on a fail-off
+            t.style.width = ''
             delete t.dataset.peCg
         }
         for (const h of D.querySelectorAll('.pe__tracer-col-handle')) {
@@ -1025,6 +1152,13 @@ future) rows. Hidden state persists like the widths do. */
         }
         for (const t of tracks) {
             if (t.resizable) D.documentElement.style.removeProperty(t.cssVar)
+        }
+        //undo the sticky-header styling so a fail-off fully restores the native look
+        if (HEADER) {
+            HEADER.style.position = ''
+            HEADER.style.top = ''
+            HEADER.style.zIndex = ''
+            HEADER.style.backgroundColor = ''
         }
     }
 
@@ -1065,9 +1199,22 @@ future) rows. Hidden state persists like the widths do. */
             '.pe__tracer-col-handle:hover { background: rgba(0, 135, 207, 0.45); }',
             '.pe__tracer-resize-overlay { position: fixed; inset: 0; z-index: 2147483646; cursor: col-resize; }',
             'body.pe__tracer-resizing { cursor: col-resize !important; user-select: none !important; }',
-            //column show/hide popup (rendered into this event document). reset the
-            //box model on the whole subtree so Pega's global td/div/button rules
-            //can't squeeze it (that was clipping the Cancel/Apply labels)
+        ].join('\n')
+        ;(D.head || D.documentElement).appendChild(style)
+    }
+
+    /* the column show/hide popup styles live in their OWN style element, injected
+    when the popup opens. the button (and thus the popup) can appear before the first
+    rows stream in - i.e. before injectStyle() runs in rebuildAll - so folding these
+    rules into injectStyle left a fresh-window popup unstyled. these rules only target
+    .pe__tracer-cols-popup, so injecting them early never touches the native table. */
+    function injectPopupStyle() {
+        if (!D || D.getElementById(POPUP_STYLE_ID)) return
+        const style = D.createElement('style')
+        style.id = POPUP_STYLE_ID
+        style.textContent = [
+            //reset the box model on the whole subtree so Pega's global td/div/button
+            //rules can't squeeze it (that was clipping the Cancel/Apply labels)
             '.pe__tracer-cols-popup, .pe__tracer-cols-popup * { box-sizing: border-box; }',
             '.pe__tracer-cols-popup { position: fixed; top: 8px; right: 12px; z-index: 2147483647; width: 230px; padding: 8px 0; background: #fff; color: #1e293b; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 8px 28px rgba(15, 23, 42, 0.20); font: 13px/1.45 "Segoe UI", system-ui, sans-serif; }',
             '.pe__tracer-cols-popup .pe__hd { padding: 2px 14px 8px; font-weight: 600; }',
@@ -1075,7 +1222,7 @@ future) rows. Hidden state persists like the widths do. */
             '.pe__tracer-cols-popup label { display: flex; align-items: center; gap: 9px; padding: 5px 14px; cursor: pointer; white-space: nowrap; }',
             '.pe__tracer-cols-popup label:hover { background: #f1f5f9; }',
             '.pe__tracer-cols-popup input { width: 15px; height: 15px; margin: 0; cursor: pointer; flex: none; }',
-            '.pe__tracer-cols-popup .pe__ft { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 14px 2px; }',
+            '.pe__tracer-cols-popup .pe__ft { display: flex; justify-content: center; gap: 8px; padding: 10px 14px 2px; }',
             //hardened with !important + explicit sizing so inherited Pega button
             //styles cannot shrink/clip these
             '.pe__tracer-cols-popup button { flex: 0 0 auto !important; width: auto !important; min-width: 74px !important; height: auto !important; min-height: 0 !important; margin: 0 !important; padding: 6px 14px !important; font: 600 13px/1.2 "Segoe UI", system-ui, sans-serif !important; white-space: nowrap !important; overflow: visible !important; text-align: center !important; text-overflow: clip !important; border-radius: 6px !important; border: 1px solid #cbd5e1 !important; background: #fff !important; color: #334155 !important; cursor: pointer !important; }',
