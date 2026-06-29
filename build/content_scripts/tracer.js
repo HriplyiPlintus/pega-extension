@@ -281,7 +281,9 @@ future) rows. Hidden state persists like the widths do. */
         if (resizeTimer) clearTimeout(resizeTimer)
         resizeTimer = setTimeout(() => {
             resizeTimer = null
-            if (!disabled && validated) {
+            //re-fit whenever we've built tracks (header-only or full), not only once
+            //validated - so a fresh, still-empty tracer also reflows on window resize
+            if (!disabled && tracks.length) {
                 try {
                     applyVisibility() //re-scale the columns to the new frame width
                 } catch (e) {
@@ -308,9 +310,8 @@ future) rows. Hidden state persists like the widths do. */
             cols = readHeaderCols(row)
             try {
                 setupToolbar()
-                applyVisibility() //apply persisted hides to the header right away
             } catch (e) {
-                log('early column UI setup failed:', e && e.message)
+                log('early toolbar setup failed:', e && e.message)
             }
         }
 
@@ -319,9 +320,17 @@ future) rows. Hidden state persists like the widths do. */
             !!row.querySelector('.pe__tracer-col-handle')
 
         if (!built) {
-            //wait for a body data row: we need it to measure + validate first
-            if (!bodyTables().some(firstDataRow)) return
+            //build now even with no rows yet (header-only); columns fill + resize
+            //immediately and validateAlignment confirms once rows stream in
             rebuildAll(row)
+            //maybeValidate only fills once validated (needs a row), so fill here too
+            if (!disabled && tracks.length && !validated) {
+                try {
+                    applyVisibility()
+                } catch (e) {
+                    log('early fill failed:', e && e.message)
+                }
+            }
         } else {
             //header is fine; just colgroup any newly streamed body tables, then pin
             //them to the frame width so they line up with the (filled) header
@@ -362,14 +371,19 @@ future) rows. Hidden state persists like the widths do. */
             return
         }
 
-        //structural gate: header track count must equal body visible track count
-        if (!structureMatches(row)) {
+        /* structural gate only means something once a body row exists to compare
+        against. with no rows yet we build optimistically on the header alone (so the
+        columns fill + resize immediately on a fresh tracer); validateAlignment
+        confirms - or fails off - as soon as rows stream in. */
+        const hasBody = bodyTables().some(firstDataRow)
+        if (hasBody && !structureMatches(row)) {
             log('header/body track structure differs -> staying native (off)')
             teardown()
             return
         }
 
         removeArtifacts() //safe even when nothing has been built yet
+        //null when no rows yet -> tracks seed from the header cells' own widths
         const natural = measureBodyTrackWidths() //measure body BEFORE we go fixed
         buildTracks(natural)
         seedVars()
