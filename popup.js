@@ -368,7 +368,7 @@ class Popup {
                                         tag: 'img',
                                         cls: 'empty-state-icon',
                                         attrs: {
-                                            src: './assets/img/add_env.jpg',
+                                            src: './assets/img/add-project.svg',
                                             alt: 'Add project',
                                         },
                                     },
@@ -771,7 +771,7 @@ class Popup {
                                             {
                                                 tag: 'img',
                                                 attrs: {
-                                                    src: './assets/img/add_env.jpg',
+                                                    src: './assets/img/add-project.svg',
                                                 },
                                             },
                                             {
@@ -855,7 +855,7 @@ class Popup {
                             {
                                 tag: 'img',
                                 attrs: {
-                                    src: './assets/img/add_env.jpg',
+                                    src: './assets/img/add-project.svg',
                                 },
                             },
                             {
@@ -1584,7 +1584,7 @@ class Popup {
                                     {
                                         tag: 'img',
                                         attrs: {
-                                            src: './assets/img/add_env.jpg',
+                                            src: './assets/img/add-project.svg',
                                         },
                                     },
                                     {
