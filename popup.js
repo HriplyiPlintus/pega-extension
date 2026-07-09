@@ -1338,33 +1338,44 @@ class Popup {
                             },
                             {
                                 tag: 'div',
-                                cls: 'form-appearance-row',
+                                cls: 'form-setting-input',
                                 content: [
                                     {
+                                        tag: 'label',
+                                        cls: 'input-label-left',
+                                        content: 'Tab Settings',
+                                    },
+                                    {
                                         tag: 'div',
-                                        cls: ['form-appearance-field', 'form-appearance-field--color'],
+                                        cls: 'form-appearance-row',
                                         content: [
                                             {
-                                                tag: 'component',
-                                                name: 'color-palette',
-                                                params: {
-                                                    selected: editColor,
-                                                },
+                                                tag: 'div',
+                                                cls: ['form-appearance-field', 'form-appearance-field--color'],
+                                                content: [
+                                                    {
+                                                        tag: 'component',
+                                                        name: 'color-palette',
+                                                        params: {
+                                                            selected: editColor,
+                                                        },
+                                                    },
+                                                ],
                                             },
-                                        ],
-                                    },
-                                    {
-                                        tag: 'div',
-                                        cls: 'form-appearance-divider',
-                                    },
-                                    {
-                                        tag: 'div',
-                                        cls: ['form-appearance-field', 'form-appearance-field--title'],
-                                        content: [
                                             {
-                                                tag: 'input',
-                                                cls: 'setting-input-field',
-                                                attrs: tabTitleInputAttrs,
+                                                tag: 'div',
+                                                cls: 'form-appearance-divider',
+                                            },
+                                            {
+                                                tag: 'div',
+                                                cls: ['form-appearance-field', 'form-appearance-field--title'],
+                                                content: [
+                                                    {
+                                                        tag: 'input',
+                                                        cls: 'setting-input-field',
+                                                        attrs: tabTitleInputAttrs,
+                                                    },
+                                                ],
                                             },
                                         ],
                                     },
@@ -1468,6 +1479,11 @@ class Popup {
                         console.log('project saved, re-rendering projects')
                         this.buildPage('projects')
                     })
+
+                //for a brand-new project, prefill URL + Name from the active tab
+                if (!isEditMode) {
+                    this.prefillFromActiveTab(formEl)
+                }
                 break
             default:
                 break
@@ -1701,6 +1717,82 @@ class Popup {
                 ],
             })
         )
+    }
+
+    /* prefills the add-project form from the currently active tab:
+       - URL field  ← the tab's origin (scheme + host + port, the "main path")
+       - Name field ← the Pega application name read from the page DOM
+       both are best-effort and only fill EMPTY inputs, so they never clobber
+       anything the user has already typed while the async lookups resolve */
+    prefillFromActiveTab(formEl) {
+        try {
+            chrome.tabs.query(
+                { active: true, currentWindow: true },
+                (tabs) => {
+                    const tab = tabs && tabs[0]
+                    if (!tab || !tab.url) return
+
+                    //── URL → origin only ──
+                    let origin = ''
+                    try {
+                        const u = new URL(tab.url)
+                        if (
+                            u.protocol === 'http:' ||
+                            u.protocol === 'https:'
+                        ) {
+                            origin = u.origin + '/'
+                        }
+                    } catch (e) {
+                        return //non-parsable / non-web tab (chrome://, etc.)
+                    }
+                    if (!origin) return
+
+                    const urlInput = formEl.querySelector('#project-url')
+                    if (urlInput && !urlInput.value) urlInput.value = origin
+
+                    //── Name → Pega application name (read from the page DOM) ──
+                    if (!chrome.scripting || tab.id == null) return
+                    chrome.scripting.executeScript(
+                        {
+                            target: { tabId: tab.id },
+                            func: () => {
+                                //try the most specific Dev Studio header
+                                //selectors first, fall back to the generic
+                                //application-menu nav link
+                                const selectors = [
+                                    '.current-application a',
+                                    '.current-application .field-item',
+                                    'a.Header_nav[title*="Application" i]',
+                                ]
+                                for (const s of selectors) {
+                                    const el = document.querySelector(s)
+                                    const t =
+                                        el && el.textContent
+                                            ? el.textContent.trim()
+                                            : ''
+                                    if (t) return t
+                                }
+                                return ''
+                            },
+                        },
+                        (results) => {
+                            //page not injectable (e.g. store page) — ignore
+                            if (chrome.runtime.lastError) return
+                            const appName =
+                                results && results[0] && results[0].result
+                            if (!appName) return
+                            const nameInput =
+                                formEl.querySelector('#project-name')
+                            if (nameInput && !nameInput.value) {
+                                nameInput.value = appName
+                            }
+                        }
+                    )
+                }
+            )
+        } catch (e) {
+            console.warn('prefillFromActiveTab failed', e)
+        }
     }
 
     //renders settings list item

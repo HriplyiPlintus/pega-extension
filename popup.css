@@ -26,6 +26,15 @@
     box-sizing: border-box;
 }
 
+/* form controls don't inherit font-family - normalize them to the popup font so
+   buttons, inputs, tabs etc. don't fall back to the browser's default typeface */
+button,
+input,
+select,
+textarea {
+    font-family: inherit;
+}
+
 body {
     font-family: var(--font);
     font-size: 13px;
@@ -573,12 +582,14 @@ input.setting-input-field::placeholder {
 }
 
 .color-picker-preview.empty {
+    /* diagonal "no colour" slash — band centred on 50% so it runs through
+       the exact middle of the circle (was 42–46%, offset to one side) */
     background: linear-gradient(
         135deg,
-        var(--surface) 42%,
-        var(--border) 42%,
-        var(--border) 46%,
-        var(--surface) 46%
+        var(--surface) 48%,
+        var(--border) 48%,
+        var(--border) 52%,
+        var(--surface) 52%
     );
 }
 
