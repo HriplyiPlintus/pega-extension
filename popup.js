@@ -1732,23 +1732,42 @@ class Popup {
                     const tab = tabs && tabs[0]
                     if (!tab || !tab.url) return
 
-                    //── URL → origin only ──
-                    let origin = ''
+                    //── URL → origin, plus the servlet context segment ──
+                    //Pega runs under a servlet context (usually /prweb/, sometimes
+                    //a custom name containing "servlet"). Keep the path up to and
+                    //including that segment so the suggestion points at the real app
+                    //root; otherwise fall back to the bare origin.
+                    let baseUrl = ''
                     try {
                         const u = new URL(tab.url)
                         if (
                             u.protocol === 'http:' ||
                             u.protocol === 'https:'
                         ) {
-                            origin = u.origin + '/'
+                            const segs = u.pathname.split('/').filter(Boolean)
+                            let ctxIdx = -1
+                            for (let i = 0; i < segs.length; i++) {
+                                const s = segs[i].toLowerCase()
+                                if (s === 'prweb' || s.includes('servlet')) {
+                                    ctxIdx = i
+                                    break
+                                }
+                            }
+                            baseUrl =
+                                ctxIdx >= 0
+                                    ? u.origin +
+                                      '/' +
+                                      segs.slice(0, ctxIdx + 1).join('/') +
+                                      '/'
+                                    : u.origin + '/'
                         }
                     } catch (e) {
                         return //non-parsable / non-web tab (chrome://, etc.)
                     }
-                    if (!origin) return
+                    if (!baseUrl) return
 
                     const urlInput = formEl.querySelector('#project-url')
-                    if (urlInput && !urlInput.value) urlInput.value = origin
+                    if (urlInput && !urlInput.value) urlInput.value = baseUrl
 
                     //── Name → Pega application name (read from the page DOM) ──
                     if (!chrome.scripting || tab.id == null) return
@@ -1792,6 +1811,39 @@ class Popup {
             )
         } catch (e) {
             console.warn('prefillFromActiveTab failed', e)
+        }
+    }
+
+    /* navigates to a project's URL. if a tab for this project is already open,
+       focus it (and its window) instead of piling up duplicates; otherwise open
+       the URL in a new tab. project URLs may be stored without a scheme, so
+       normalize before creating a tab */
+    openProjectUrl(url) {
+        if (!url) return
+
+        let target = url.trim()
+        if (!/^https?:\/\//i.test(target)) target = 'https://' + target
+
+        try {
+            chrome.tabs.query({}, (tabs) => {
+                //match an existing tab whose URL starts with the project URL
+                const existing = (tabs || []).find(
+                    (t) => t.url && t.url.indexOf(url) !== -1
+                )
+
+                if (existing) {
+                    chrome.tabs.update(existing.id, { active: true })
+                    if (existing.windowId != null) {
+                        chrome.windows.update(existing.windowId, {
+                            focused: true,
+                        })
+                    }
+                } else {
+                    chrome.tabs.create({ url: target })
+                }
+            })
+        } catch (e) {
+            console.warn('openProjectUrl failed', e)
         }
     }
 
@@ -1841,6 +1893,14 @@ class Popup {
                                         tag: 'button',
                                         cls: [
                                             'settings-item-action',
+                                            'action-open',
+                                        ],
+                                        content: 'Open ↗',
+                                    },
+                                    {
+                                        tag: 'button',
+                                        cls: [
+                                            'settings-item-action',
                                             'action-details',
                                         ],
                                         content: 'Details',
@@ -1875,6 +1935,14 @@ class Popup {
         const projectCard = settingsContainer.querySelector(
             `[data-project-id="${id}"]`
         )
+
+        //Open link — navigate to the project's URL
+        projectCard
+            .querySelector('.action-open')
+            ?.addEventListener('click', () => {
+                console.log('open project:', id, url)
+                this.openProjectUrl(url)
+            })
 
         //Remove button
         projectCard
